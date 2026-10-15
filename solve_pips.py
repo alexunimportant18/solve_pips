@@ -6,7 +6,7 @@ from constraint import Constraint, ConstraintType
 from domino import Domino
 from options import Options
 from readfile import read_csv, read_toml
-from solve import solve
+from solve import failed_states, solve
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,6 +55,10 @@ def main():
             answer, _ = result
             print("\nAnswer =")
             answer.print_board()
+        # Print cache/memoization statistics
+        print(f"\nCache statistics:")
+        print(f"  Total failed states tracked: {len(failed_states)}")
+        print(f"  Number of states avoided by memoization: {len(failed_states)}")
 
 
 if __name__ == "__main__":

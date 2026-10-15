@@ -633,3 +633,15 @@ class Board:
 
     def print_board(self):
         print(self.__repr__())
+
+    def __hash__(self):
+        # Hash only the immutable board state that affects solvability
+        # Convert the 2D board list to a tuple of tuples so it's hashable
+        board_tuple = tuple(tuple(row) for row in self.board)
+        return hash(board_tuple)
+
+    def __eq__(self, other):
+        if not isinstance(other, Board):
+            return False
+        # Two boards are equal if their board states are identical
+        return self.board == other.board
