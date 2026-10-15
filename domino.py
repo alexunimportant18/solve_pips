@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 Domino = namedtuple("Domino", ("left", "right"))
-Domino.__repr__ = lambda self: f"Domino({self.left} | {self.right})"
+Domino.__repr__ = lambda self: f"[{self.left}|{self.right}]"
 
 Domino.__eq__ = lambda self, other: {self.left, self.right} == {other.left, other.right}
 Domino.__hash__ = lambda self: hash(frozenset([self.left, self.right]))
