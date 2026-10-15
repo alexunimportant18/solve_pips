@@ -604,6 +604,14 @@ class Board:
                             current_color,
                         )
 
+                case ConstraintType.NE:
+                    current_color = next(color_generator)
+                    for position in constraint.positions:
+                        board_constraints[position.row][position.col] = (
+                            " ! ",
+                            current_color,
+                        )
+
                 case ConstraintType.LT:
                     current_color = next(color_generator)
                     for position in constraint.positions:
