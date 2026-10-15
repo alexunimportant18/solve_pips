@@ -55,6 +55,9 @@ def main():
             answer, _ = result
             print("\nAnswer =")
             answer.print_board()
+        else:
+            print("No solution found")
+
         # Print cache/memoization statistics
         print(f"\nCache statistics:")
         print(f"  Total failed states tracked: {len(failed_states)}")
