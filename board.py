@@ -10,21 +10,22 @@ from direction import Direction
 from domino import Domino, reverse_domino, value_distribution
 from position import Position
 
+color_sequence = [
+    "red",
+    "green",
+    "blue",
+    "yellow",
+    "magenta",
+    "cyan",
+    "light_red",
+    "light_green",
+    "light_blue",
+]
+
 
 def get_next_color() -> Generator[str, None, None]:
-    color_code = [
-        "red",
-        "green",
-        "blue",
-        "yellow",
-        "magenta",
-        "cyan",
-        "light_red",
-        "light_green",
-        "light_blue",
-    ]
     while True:
-        yield from color_code
+        yield from color_sequence
 
 
 def find_combinations(n: int, t: int) -> list[Combination]:
@@ -206,6 +207,12 @@ class Board:
             [set() for _ in range(self.n_col)] for _ in range(self.n_row)
         ]
         self.sorted_positions: list[Position] = []
+        # Initialize cell colors with white for all cells
+        self.cell_colors: list[list[str]] = [
+            ["white" for _ in range(self.n_col)] for _ in range(self.n_row)
+        ]
+        # Track current color index for domino coloring
+        self.color_index = 0
 
     def add_constraint(self, constraint: Constraint) -> None:
         for position in constraint.positions:
@@ -364,6 +371,7 @@ class Board:
             return False
 
         saved_board = copy.deepcopy(self.board)
+        saved_colors = copy.deepcopy(self.cell_colors)
 
         if self.board[row1][col1] is not None:
             logging.debug(f"Position {position} is already occupied")
@@ -401,14 +409,21 @@ class Board:
             logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
             return False
 
+        # Get current color for this domino and assign to both cells
+        current_color = color_sequence[self.color_index]
         self.board[row1][col1] = domino.left
         self.board[row2][col2] = domino.right
+        self.cell_colors[row1][col1] = current_color
+        self.cell_colors[row2][col2] = current_color
+        # Move to next color in sequence, wrapping around if needed
+        self.color_index = (self.color_index + 1) % len(color_sequence)
 
         if not self.check_partial_constraints():
             logging.debug(
                 f"Domino {domino} violates partial constraints at {position} {direction}"
             )
             self.board = saved_board
+            self.cell_colors = saved_colors
             return False
 
         logging.debug(f"Domino {domino} placed at {position} {direction}")
@@ -539,21 +554,16 @@ class Board:
 
     def __repr__(self):
         result = ""
-        for row in self.board:
-            result += (
-                "|"
-                + "|".join(
-                    [
-                        "  "
-                        if cell == -1
-                        else f"{cell:>2}"
-                        if cell is not None
-                        else " ."
-                        for cell in row
-                    ]
-                )
-                + "|\n"
-            )
+        for i, row in enumerate(self.board):
+            colored_cells = []
+            for j, cell in enumerate(row):
+                if cell == -1:
+                    colored_cells.append("  ")
+                elif cell is not None:
+                    colored_cells.append(colored(f"{cell:>2}", self.cell_colors[i][j]))
+                else:
+                    colored_cells.append(" .")
+            result += "|" + "|".join(colored_cells) + "|\n"
         return result
 
     def print_possible_dominoes(self):
