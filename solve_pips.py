@@ -6,7 +6,7 @@ from constraint import Constraint, ConstraintType
 from domino import Domino
 from options import Options
 from readfile import read_csv, read_toml
-from solve import failed_states, solve
+from solve import cache_stats, solve
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,9 +59,15 @@ def main():
             print("No solution found")
 
         # Print cache/memoization statistics
-        print(f"\nCache statistics:")
-        print(f"  Total failed states tracked: {len(failed_states)}")
-        print(f"  Number of states avoided by memoization: {len(failed_states)}")
+        hit_rate = (
+            cache_stats["call_saved"]
+            * 100
+            / (cache_stats["call_total"] + cache_stats["call_saved"])
+        )
+        print("\nCache statistics:")
+        print(f"  Total function calls: {cache_stats['call_total']}")
+        # print(f"  Total failed states tracked: {len(cache_stats['failed_states'])}")
+        print(f"  Function calls cached: {cache_stats['call_saved']} ({hit_rate:.2f}%)")
 
 
 if __name__ == "__main__":
