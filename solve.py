@@ -25,6 +25,11 @@ def solve(
     and then recursively calls itself. If a path leads to a dead end, it backtracks
     and tries another option.
     """
+    # Base case: If there are no dominoes left to place, we have found a solution.
+    if not available_dominoes:
+        print("Solution found!")
+        return board, available_dominoes
+
     # Increment total function calls every time solve() is called
     state_key = None
 
@@ -39,11 +44,6 @@ def solve(
     if state_key in cache_stats["failed_states"]:
         cache_stats["call_saved"] += 1
         return None
-
-    # Base case: If there are no dominoes left to place, we have found a solution.
-    if not available_dominoes:
-        print("Solution found!")
-        return board, available_dominoes
 
     # Find the next empty cell to fill. If the board is full but we still have
     # dominoes, this path is invalid.
@@ -123,7 +123,8 @@ def solve(
                     #    f"  Placed {placement_orientation} at {position} going {direction}.  Board becomes\n{board}"
                     # )
                     # If placement is successful, create the new set of remaining dominoes.
-                    remaining_dominoes = set(available_dominoes).copy()
+                    # remaining_dominoes = set(available_dominoes).copy()
+                    remaining_dominoes = set(available_dominoes)
                     remaining_dominoes.remove(domino_to_remove)
 
                     # Recurse with the same board instance (we'll backtrack later)

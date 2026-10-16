@@ -77,13 +77,49 @@ def find_subset_of_possible_dominoes_in_combination(
 ) -> set[Domino]:
     """
     Finds all dominoes that have at least one number in the given combination.
+    Each domino contributes exactly two values (left and right), and all values in combination must be used exactly once.
+    """
+    possible_dominoes: set[Domino] = set()
+    if len(combination) == 0:
+        return possible_dominoes
 
-    Args:
-        combination: A list of numbers.
-        dominoes: A set of available dominoes.
+    value: int = combination[0]
+    # Create a list to iterate over to avoid modifying the set during iteration
+    domino_list = list(dominoes)
+    for domino in domino_list:
+        # Check if this domino can contribute to the combination
+        if domino.left == value or domino.right == value:
+            possible_dominoes.add(domino)
+            # Create a new domino set without the current domino
+            remaining_dominoes = set(dominoes)
+            remaining_dominoes.remove(domino)
 
-    Returns:
-        A set of dominoes that have at least one number in the combination.
+            # Create a copy of the combination and remove the matched value
+            remaining_combination = combination.copy()
+            remaining_combination.remove(value)
+
+            # If the other value from the domino is also in the remaining combination, remove it too
+            other_value = domino.right if domino.left == value else domino.left
+            if other_value in remaining_combination:
+                remaining_combination.remove(other_value)
+
+            # Recursively find dominoes for the remaining combination
+            if len(remaining_combination) > 0 and len(remaining_dominoes) > 0:
+                possible_dominoes.update(
+                    find_subset_of_possible_dominoes_in_combination(
+                        remaining_combination, remaining_dominoes
+                    )
+                )
+
+    return possible_dominoes
+
+
+def find_subset_of_possible_dominoes_in_combination_old(
+    combination: Combination, dominoes: set[Domino]
+) -> set[Domino]:
+    """
+    Finds all dominoes that have at least one number in the given combination.
+    Each domino contributes exactly two values (left and right), and all values in combination must be used exactly once.
     """
     possible_dominoes: set[Domino] = set()
     if len(combination) == 0:
@@ -262,8 +298,8 @@ class Board:
     def cell(self, row: int, col: int) -> int | None:
         return self.board[row][col]
 
-    def generate_possible_dominoes(self, availabe_dominoes: set[Domino]):
-        distribution: dict[int, int] = value_distribution(list(availabe_dominoes))
+    def generate_possible_dominoes(self, available_dominoes: set[Domino]):
+        distribution: dict[int, int] = value_distribution(list(available_dominoes))
         logging.debug(f"{distribution=}")
 
         for constraint in self.constraint_list:
@@ -271,13 +307,13 @@ class Board:
                 case ConstraintType.FREE | ConstraintType.NE:
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = set(
-                            availabe_dominoes
+                            available_dominoes
                         )
 
                 case ConstraintType.VALUE:
                     for position in constraint.positions:
                         possible_dominoes = set()
-                        for domino in availabe_dominoes:
+                        for domino in available_dominoes:
                             if (
                                 domino.left == constraint.value
                                 or domino.right == constraint.value
@@ -294,7 +330,7 @@ class Board:
                     for i in range(0, 7):
                         if i in distribution.keys():
                             if distribution[i] >= minimum_count:
-                                for domino in availabe_dominoes:
+                                for domino in available_dominoes:
                                     if domino.left == i or domino.right == i:
                                         result.add(domino)
 
@@ -305,7 +341,7 @@ class Board:
                     count = len(constraint.positions)
                     value = constraint.value
                     result = find_possible_dominoes_with_total_count(
-                        availabe_dominoes, count, value
+                        available_dominoes, count, value
                     )
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = result
@@ -314,7 +350,7 @@ class Board:
                     count: int = len(constraint.positions)
                     value: int | None = constraint.value
                     result: set[Domino] = find_possible_dominoes_with_less_than(
-                        availabe_dominoes, count, value
+                        available_dominoes, count, value
                     )
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = result
@@ -323,7 +359,7 @@ class Board:
                     count: int = len(constraint.positions)
                     value: int | None = constraint.value
                     result: set[Domino] = find_possible_dominoes_with_greater_than(
-                        availabe_dominoes, count, value
+                        available_dominoes, count, value
                     )
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = result
@@ -504,6 +540,8 @@ class Board:
                 else:
                     if total > constraint.value:
                         return False
+                    if total != constraint.value:
+                        return False
 
             case ConstraintType.LT:
                 if constraint.value is None:
@@ -522,15 +560,26 @@ class Board:
                     raise ValueError("value must be provided")
 
                 total = 0
+                empty_cells = 0
                 is_complete = True
                 for position in constraint.positions:
                     value = self.board[position.row][position.col]
                     if value is not None:
                         total += value
                     else:
+                        empty_cells += 1
                         is_complete = False
-                if is_complete and total <= constraint.value:
-                    return False
+
+                # If all cells are filled, check if total is actually greater than constraint value
+                if is_complete:
+                    if total <= constraint.value:
+                        return False
+                else:
+                    # Even if we fill all remaining empty cells with maximum possible value (6),
+                    # we still can't reach the required sum - this state is impossible
+                    max_possible_total = total + (empty_cells * 6)
+                    if max_possible_total <= constraint.value:
+                        return False
 
             case _:
                 raise ValueError(
