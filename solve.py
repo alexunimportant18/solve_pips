@@ -27,7 +27,7 @@ def solve(
     """
     # Base case: If there are no dominoes left to place, we have found a solution.
     if not available_dominoes:
-        print("Solution found!")
+        print("\nSolution found!")
         return board, available_dominoes
 
     # Increment total function calls every time solve() is called
