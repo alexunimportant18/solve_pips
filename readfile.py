@@ -1,7 +1,6 @@
 import csv
 import tomllib
 from abc import ABC, abstractmethod
-from curses.ascii import isalpha, isdigit
 
 from board import Board
 from constraint import Constraint, ConstraintType
@@ -18,296 +17,244 @@ CONSTRAINT_TYPE_MAP = {
 
 
 def is_valid_constraint(constraint: str) -> bool:
+    """Validates if a string represents a valid puzzle constraint.
+
+    Args:
+        constraint (str): The constraint string to validate.
+
+    Returns:
+        bool: True if the constraint is valid, False otherwise.
+    """
     constraint = constraint.strip()
-    # empty cell, return false
     if not constraint:
         return False
-
-    # VALUE constraint
-    if constraint.isdigit() and int(constraint) <= 6 and int(constraint) >= 0:
+    if constraint.isdigit() and 0 <= int(constraint) <= 6:
         return True
-
-    # FREE constraint or DEAD constraint
     if constraint == "." or constraint.upper() == "X":
         return True
-
-    # All other operators should have at least 2 character
     if len(constraint) < 2:
         return False
-
-    # For other constraints, check if the second character is a value operator
     if constraint[1] not in CONSTRAINT_TYPE_MAP:
         return False
-
     if constraint[1] in ("=", "!"):
-        if len(constraint) > 3:
-            return False
+        if len(constraint) == 2:
+            return constraint[0].isalpha()
         if len(constraint) == 3:
             return constraint[2] == "="
-        if len(constraint) == 2:
-            if constraint[0].upper().isalpha():
-                return True
-            else:
-                return False
-
-    # All other constraints should have a value after the operator
-    if len(constraint) < 3:
         return False
-    if not constraint[0].upper().isalpha():
-        return False
-    if not constraint[2:].isdigit():
-        return False
-
-    return True
+    return len(constraint) >= 3 and constraint[0].isalpha() and constraint[2:].isdigit()
 
 
 class PipsPuzzleReader(ABC):
+    """Abstract base class for puzzle file readers."""
+
     @abstractmethod
     def read(self, filename: str) -> tuple[Board, list[Domino]]:
-        """Reads a puzzle file and returns a Board and a list of Dominoes."""
+        """Reads a puzzle file and returns the board and dominoes.
+
+        Args:
+            filename (str): Path to the puzzle file.
+
+        Returns:
+            tuple[Board, list[Domino]]: A tuple containing the Board object and list of Dominoes.
+        """
         pass
 
 
 class TomlPuzzleReader(PipsPuzzleReader):
+    """Reader for puzzle definitions in TOML format."""
+
     def read(self, filename: str) -> tuple[Board, list[Domino]]:
+        """Parses a TOML file to generate a Board and a list of Dominoes.
+
+        Args:
+            filename (str): Path to the TOML puzzle file.
+
+        Returns:
+            tuple[Board, list[Domino]]: The parsed Board and Dominoes.
+
+        Raises:
+            ValueError: If the TOML structure is invalid or contains parsing errors.
+            FileNotFoundError: If the file does not exist.
+        """
         try:
             with open(filename, "rb") as f:
                 config = tomllib.load(f)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Puzzle file not found: {filename}")
-        except tomllib.TOMLDecodeError as e:
-            raise ValueError(f"Invalid TOML format in {filename}: {e}")
-        except Exception as e:
-            raise RuntimeError(f"Unexpected error reading {filename}: {e}")
+        except (FileNotFoundError, tomllib.TOMLDecodeError) as e:
+            raise type(e)(f"Error reading {filename}: {e}")
 
         try:
             lines = config["board"]["layout"]
-            height = len(lines)
-            width = len(lines[0]) if lines else 0
+            height, width = len(lines), len(lines[0]) if lines else 0
             board = Board(width=width, height=height)
             cells = [list(line) for line in lines]
-            for row in cells:
-                for col in row:
-                    if (
-                        col not in CONSTRAINT_TYPE_MAP.keys()
-                        and col.upper() not in (".", "X")
-                        and not col.isdigit()
-                    ):
-                        raise ValueError(
-                            f"Invalid constraint operator '{col}' in board layout."
-                        )
-        except KeyError as e:
-            raise KeyError(f"Missing required TOML section: {e}")
-        except Exception as e:
-            raise ValueError(f"Error parsing board layout in {filename}: {e}")
 
-        try:
-            constraints = config["constraints"]
-            for k, v in constraints.items():
-                if not k.upper().isalpha():
-                    raise ValueError(
-                        f"Constraint key '{k}' must be an alphabetical character."
-                    )
+            # Process explicit constraints from the 'constraints' section
+            for k, v in config.get("constraints", {}).items():
+                if not k.isalpha() or v[0] not in CONSTRAINT_TYPE_MAP:
+                    raise ValueError(f"Invalid constraint specification for {k}: {v}")
 
-                if v[0] not in CONSTRAINT_TYPE_MAP:
-                    raise ValueError(
-                        f"Invalid constraint operator '{v[0]}' for key '{k}'. Valid operators: {list(CONSTRAINT_TYPE_MAP.keys())}"
-                    )
+                val_str = "0" if v[0] in ("=", "!") else v[1:]
+                positions = [
+                    Position(row=r, col=c)
+                    for r, row in enumerate(cells)
+                    for c, cell in enumerate(row)
+                    if cell == k
+                ]
+                if not positions:
+                    raise ValueError(f"Constraint key '{k}' not found in layout")
 
-                constraint_type = CONSTRAINT_TYPE_MAP[v[0]]
-                value_str = 0 if v[0] in ("=", "!") else v[1:]
-
-                try:
-                    value = int(value_str)
-                except ValueError:
-                    raise ValueError(
-                        f"Invalid numeric value '{value_str}' for constraint key '{k}'."
-                    )
-
-                position_list = []
-                for i, row in enumerate(cells):
-                    for j, cell in enumerate(row):
-                        if cell == k:
-                            position_list.append(Position(row=i, col=j))
-
-                if not position_list:
-                    raise ValueError(f"Constraint key '{k}' not found in board layout.")
-
-                board.add_constraint(Constraint(constraint_type, position_list, value))
-        except KeyError:
-            raise KeyError(f"Missing 'constraints' section in {filename}")
-        except ValueError as e:
-            raise e
-
-        try:
-            # handle DEAD cells
-            dead_positions = []
-            for i, row in enumerate(cells):
-                for j, cell in enumerate(row):
-                    if cell.upper() == "X":
-                        dead_positions.append(Position(row=i, col=j))
-            if dead_positions:
                 board.add_constraint(
-                    Constraint(ConstraintType.DEAD, dead_positions, -1)
+                    Constraint(CONSTRAINT_TYPE_MAP[v[0]], positions, int(val_str))
                 )
 
-            # handle FREE cells
-            free_positions = []
-            for i, row in enumerate(cells):
-                for j, cell in enumerate(row):
+            # Process layout markers
+            for r, row in enumerate(cells):
+                for c, cell in enumerate(row):
                     if cell == ".":
-                        free_positions.append(Position(row=i, col=j))
-            if free_positions:
-                board.add_constraint(
-                    Constraint(ConstraintType.FREE, free_positions, None)
-                )
-
-            # handle VALUE cells
-            for i, row in enumerate(cells):
-                for j, cell in enumerate(row):
-                    if cell.isdigit():
+                        board.add_constraint(
+                            Constraint(
+                                ConstraintType.FREE, [Position(row=r, col=c)], None
+                            )
+                        )
+                    elif cell.upper() == "X":
+                        board.add_constraint(
+                            Constraint(
+                                ConstraintType.DEAD, [Position(row=r, col=c)], -1
+                            )
+                        )
+                    elif cell.isdigit():
                         board.add_constraint(
                             Constraint(
                                 ConstraintType.VALUE,
-                                [Position(row=i, col=j)],
+                                [Position(row=r, col=c)],
                                 int(cell),
                             )
                         )
-        except Exception as e:
-            raise ValueError(f"Error processing layout markers in {filename}: {e}")
 
-        try:
-            dominoes = []
-            tiles = config["dominoes"]["tiles"]
-            for v in tiles:
-                if not isinstance(v, str) or len(v) < 2:
-                    raise ValueError(
-                        f"Invalid domino tile definition '{v}'. Expected a string of at least 2 digits."
-                    )
-
-                if not (v[0].isdigit() and v[1].isdigit()):
-                    raise ValueError(f"Domino tile '{v}' must start with two digits.")
-
-                dominoes.append(Domino(int(v[0]), int(v[1])))
-        except KeyError:
-            raise KeyError(f"Missing 'dominoes' section or 'tiles' list in {filename}")
-        except ValueError as e:
-            raise e
-
-        return board, dominoes
+            dominoes = [
+                Domino(int(t[0]), int(t[1]))
+                for t in config["dominoes"]["tiles"]
+                if len(t) >= 2 and t[:2].isdigit()
+            ]
+            return board, dominoes
+        except (KeyError, ValueError) as e:
+            raise ValueError(f"Error parsing TOML layout in {filename}: {e}")
 
 
 class CsvPuzzleReader(PipsPuzzleReader):
-    def read(self, filename: str) -> tuple[Board, list[Domino]]:
-        dominoes = []
-        cell_map = {}
-        width, height = 0, 0
+    """Reader for puzzle definitions in CSV format."""
 
+    def read(self, filename: str) -> tuple[Board, list[Domino]]:
+        """Parses a CSV file to generate a Board and a list of Dominoes.
+
+        Args:
+            filename (str): Path to the CSV puzzle file.
+
+        Returns:
+            tuple[Board, list[Domino]]: The parsed Board and Dominoes.
+
+        Raises:
+            ValueError: If the CSV format is invalid or contains parsing errors.
+            FileNotFoundError: If the file does not exist.
+        """
         try:
             with open(filename, mode="r") as file:
-                reader = csv.reader(file)
-                for i, line in enumerate(reader):
-                    # Skip truly empty lines (like at the end of the file)
-                    if not line or not any(cell.strip() for cell in line):
+                reader = list(csv.reader(file))
+                if not reader:
+                    raise ValueError("Empty CSV file")
+
+                # First line: Dominoes
+                dominoes = [
+                    Domino(int(c[0]), int(c[1]))
+                    for c in reader[0]
+                    if c.strip() and len(c.strip()) >= 2 and c.strip()[:2].isdigit()
+                ]
+                if not dominoes:
+                    raise ValueError("No valid dominoes found")
+
+                # Remaining lines: Layout
+                cell_map = {}
+                height = 0
+                width = 0
+                for r, line in enumerate(reader[1:]):
+                    if not line or not any(c.strip() for c in line):
                         continue
-                    if i == 0:
-                        for cell in line:
-                            cell = cell.strip()
-                            if not cell:
-                                continue
-                            if len(cell) < 2 or not (
-                                cell[0].isdigit() and cell[1].isdigit()
-                            ):
-                                raise ValueError(
-                                    f"Invalid domino tile '{cell}' at the start of {filename}. Expected 2 digits."
-                                )
-                            dominoes.append(Domino(int(cell[0]), int(cell[1])))
-                    else:
-                        row = i - 1
-                        for col, cell in enumerate(line):
-                            cell = cell.strip()
-                            if not cell:
-                                raise ValueError(
-                                    f"Empty cell at position ({row}, {col}) in {filename}"
-                                )
-                            width = max(width, col + 1)
-                            height = max(height, row + 1)
-                            if is_valid_constraint(cell):
-                                if cell in cell_map:
-                                    cell_map[cell].append(Position(row=row, col=col))
-                                else:
-                                    cell_map[cell] = [Position(row=row, col=col)]
-                            else:
-                                raise ValueError(
-                                    f"Invalid constraint '{cell}' at position ({row}, {col}) in {filename}"
-                                )
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Puzzle file not found: {filename}")
-        except Exception as e:
-            if isinstance(e, ValueError):
-                raise e
-            raise RuntimeError(f"Unexpected error reading CSV {filename}: {e}")
+                    height += 1
+                    width = max(width, len(line))
+                    for c, cell in enumerate(line):
+                        cell = cell.strip()
+                        if not cell:
+                            raise ValueError(f"Empty cell at ({r}, {c})")
+                        if not is_valid_constraint(cell):
+                            raise ValueError(
+                                f"Invalid constraint '{cell}' at ({r}, {c})"
+                            )
+                        cell_map.setdefault(cell, []).append(Position(row=r, col=c))
 
-        if not dominoes:
-            raise ValueError(f"No dominoes found in the first line of {filename}")
-        if height == 0:
-            raise ValueError(f"No board layout found in {filename}")
-
-        # print(f"cell_map={cell_map}")
-        board = Board(width=width, height=height)
-        for k, v in cell_map.items():
-            if k == ".":
-                board.add_constraint(Constraint(ConstraintType.FREE, v, None))
-            elif k == "x":
-                board.add_constraint(Constraint(ConstraintType.DEAD, v, -1))
-            elif k.isdigit():
-                board.add_constraint(Constraint(ConstraintType.VALUE, v, int(k)))
-            else:
-                try:
-                    # CSV constraints are usually formatted as 'A+1' where A is the key and +1 is the spec
-                    if len(k) < 2:
-                        raise ValueError(
-                            f"Constraint key '{k}' is too short to be a valid constraint."
+                board = Board(width=width, height=height)
+                for k, v in cell_map.items():
+                    if k == ".":
+                        board.add_constraint(Constraint(ConstraintType.FREE, v, None))
+                    elif k.lower() == "x":
+                        board.add_constraint(Constraint(ConstraintType.DEAD, v, -1))
+                    elif k.isdigit():
+                        board.add_constraint(
+                            Constraint(ConstraintType.VALUE, v, int(k))
+                        )
+                    elif len(k) >= 2 and k[1] in CONSTRAINT_TYPE_MAP:
+                        val_str = "0" if k[1] in ("=", "!") else k[2:]
+                        board.add_constraint(
+                            Constraint(
+                                CONSTRAINT_TYPE_MAP[k[1]],
+                                v,
+                                int(val_str) if val_str else 0,
+                            )
                         )
 
-                    key = k[0]
-                    spec = k[1:]
-
-                    if not spec or spec[0] not in CONSTRAINT_TYPE_MAP:
-                        raise ValueError(
-                            f"Invalid constraint operator in '{k}'. Valid operators: {list(CONSTRAINT_TYPE_MAP.keys())}"
-                        )
-
-                    constraint_type = CONSTRAINT_TYPE_MAP[spec[0]]
-                    value_str = "0" if spec[0] in ("=", "!") else spec[1:]
-
-                    try:
-                        value = int(value_str)
-                    except ValueError:
-                        raise ValueError(f"Invalid numeric value in constraint '{k}'.")
-
-                    board.add_constraint(Constraint(constraint_type, v, value))
-                except Exception as e:
-                    raise ValueError(
-                        f"Error reading input file: {e} at position ({v[0].row}, {v[0].col})"
-                    )
-
-        return board, dominoes
+                return board, dominoes
+        except (FileNotFoundError, ValueError) as e:
+            raise type(e)(f"Error reading CSV {filename}: {e}")
 
 
 def get_puzzle_reader(filename: str) -> PipsPuzzleReader:
+    """Factory function to return a puzzle reader based on file extension.
+
+    Args:
+        filename (str): The puzzle filename.
+
+    Returns:
+        PipsPuzzleReader: A reader instance (TomlPuzzleReader or CsvPuzzleReader).
+
+    Raises:
+        ValueError: If the file format is unsupported.
+    """
     if filename.endswith(".toml"):
         return TomlPuzzleReader()
-    elif filename.endswith(".csv"):
+    if filename.endswith(".csv"):
         return CsvPuzzleReader()
-    else:
-        raise ValueError(f"Unsupported file format: {filename}")
+    raise ValueError(f"Unsupported format: {filename}")
 
 
-# Legacy support for read_toml and read_csv functions
 def read_toml(filename: str) -> tuple[Board, list[Domino]]:
+    """Helper function to read a TOML puzzle file.
+
+    Args:
+        filename (str): Path to the TOML file.
+
+    Returns:
+        tuple[Board, list[Domino]]: Parsed board and dominoes.
+    """
     return TomlPuzzleReader().read(filename)
 
 
 def read_csv(filename: str) -> tuple[Board, list[Domino]]:
+    """Helper function to read a CSV puzzle file.
+
+    Args:
+        filename (str): Path to the CSV file.
+
+    Returns:
+        tuple[Board, list[Domino]]: Parsed board and dominoes.
+    """
     return CsvPuzzleReader().read(filename)

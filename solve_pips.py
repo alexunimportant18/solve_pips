@@ -12,6 +12,16 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    """Main entry point for the solve_pips application.
+
+    This function orchestrates the puzzle solving process:
+    1. Parses command-line arguments.
+    2. Loads the puzzle definition from a TOML or CSV file.
+    3. Pre-calculates possible dominoes for each cell to prune the search.
+    4. Invokes the backtracking solver.
+    5. Prints the final solved board or a 'no solution' message.
+    6. Displays performance statistics regarding the failed-state cache.
+    """
     opt: Namespace = Options().getparse()
     if opt.verbose:
         logging.basicConfig(
@@ -38,17 +48,13 @@ def main():
     if not opt.toml_file and not opt.csv_file:
         raise ValueError("Either toml_file or csv_file must be provided")
 
-    # board, dominoes = gen_real_data()
-
     if dominoes and board:
         print(f"{dominoes=}")
         print("Board =")
         board.print_constraints()
-        # print(find_possible_dominoes_with_total_count(dominoes, 1, 1))
 
         board.generate_possible_dominoes(set(dominoes))
-        # logging.debug(f"sorted positions: {board.sorted_positions}")
-        # board.print_possible_dominoes()
+        board.sort_constraints()
 
         result = solve(board, set(dominoes))
         if result:
@@ -66,7 +72,6 @@ def main():
         )
         print("\nCache statistics:")
         print(f"  Total function calls: {cache_stats['call_total']}")
-        # print(f"  Total failed states tracked: {len(cache_stats['failed_states'])}")
         print(f"  Function calls cached: {cache_stats['call_saved']} ({hit_rate:.2f}%)")
 
 

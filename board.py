@@ -24,26 +24,28 @@ color_sequence = [
 
 
 def get_next_color() -> Generator[str, None, None]:
+    """Infinite generator that cycles through the defined color sequence.
+
+    Yields:
+        str: The next color string from the color_sequence.
+    """
     while True:
         yield from color_sequence
 
 
 def find_combinations(n: int, t: int) -> list[Combination]:
-    """
-    Finds all possible combinations of N numbers (0-6) that sum up to T.
+    """Finds all possible combinations of N numbers (0-6) that sum up to T.
 
     Args:
-        n: The number of boxes (or numbers in a combination).
-        t: The target sum.
+        n (int): The number of cells in the combination.
+        t (int): The target sum.
 
     Returns:
-        A list of lists, where each inner list is a combination of numbers
-        that sums to T.
+        list[Combination]: A list of combinations that sum to T.
     """
     if n * 6 < t or n * 0 > t:
         return []
 
-    # the result will be updated as a side effect
     def find_combinations_recursive(
         n_rem: int,
         t_rem: int,
@@ -55,12 +57,9 @@ def find_combinations(n: int, t: int) -> list[Combination]:
                 result.append(current_combination)
             return
 
-        # Optimization: Prune branches that can't possibly reach the target sum.
         if t_rem < 0 or n_rem * 6 < t_rem:
             return
 
-        # since we start from the lowest domino point, we can skip the numbers that are already in the combination
-        # by starting from the last found domino point
         start = current_combination[-1] if current_combination else 0
         for i in range(start, 7):
             find_combinations_recursive(
@@ -75,35 +74,34 @@ def find_combinations(n: int, t: int) -> list[Combination]:
 def find_subset_of_possible_dominoes_in_combination(
     combination: Combination, dominoes: set[Domino]
 ) -> set[Domino]:
-    """
-    Finds all dominoes that have at least one number in the given combination.
-    Each domino contributes exactly two values (left and right), and all values in combination must be used exactly once.
+    """Finds dominoes that can satisfy the values in a specific combination.
+
+    Args:
+        combination (Combination): A list of values that must be filled.
+        dominoes (set[Domino]): The set of available dominoes to choose from.
+
+    Returns:
+        set[Domino]: The set of dominoes that can be used to form the combination.
     """
     possible_dominoes: set[Domino] = set()
     if len(combination) == 0:
         return possible_dominoes
 
     value: int = combination[0]
-    # Create a list to iterate over to avoid modifying the set during iteration
     domino_list = list(dominoes)
     for domino in domino_list:
-        # Check if this domino can contribute to the combination
         if domino.left == value or domino.right == value:
             possible_dominoes.add(domino)
-            # Create a new domino set without the current domino
             remaining_dominoes = set(dominoes)
             remaining_dominoes.remove(domino)
 
-            # Create a copy of the combination and remove the matched value
             remaining_combination = combination.copy()
             remaining_combination.remove(value)
 
-            # If the other value from the domino is also in the remaining combination, remove it too
             other_value = domino.right if domino.left == value else domino.left
             if other_value in remaining_combination:
                 remaining_combination.remove(other_value)
 
-            # Recursively find dominoes for the remaining combination
             if len(remaining_combination) > 0 and len(remaining_dominoes) > 0:
                 possible_dominoes.update(
                     find_subset_of_possible_dominoes_in_combination(
@@ -117,9 +115,14 @@ def find_subset_of_possible_dominoes_in_combination(
 def find_subset_of_possible_dominoes_in_combination_old(
     combination: Combination, dominoes: set[Domino]
 ) -> set[Domino]:
-    """
-    Finds all dominoes that have at least one number in the given combination.
-    Each domino contributes exactly two values (left and right), and all values in combination must be used exactly once.
+    """Legacy version of combination subset finding.
+
+    Args:
+        combination (Combination): Target values.
+        dominoes (set[Domino]): Available dominoes.
+
+    Returns:
+        set[Domino]: Possible dominoes.
     """
     possible_dominoes: set[Domino] = set()
     if len(combination) == 0:
@@ -128,8 +131,6 @@ def find_subset_of_possible_dominoes_in_combination_old(
     value: int = combination[0]
     for domino in dominoes:
         temp: set[Domino] = copy.deepcopy(dominoes)
-        # only one side of the domino in the combination is already enough, maybe the other side is not
-        # in the current constraint
         if domino.left == value or domino.right == value:
             possible_dominoes.add(domino)
             temp.remove(domino)
@@ -146,11 +147,23 @@ def find_subset_of_possible_dominoes_in_combination_old(
 def find_possible_dominoes_with_total_count(
     dominoes: set[Domino], count: int, value: int | None
 ) -> set[Domino]:
+    """Finds dominoes that can sum to a specific total given a number of cells.
+
+    Args:
+        dominoes (set[Domino]): Available dominoes.
+        count (int): Number of cells.
+        value (int | None): Target sum.
+
+    Returns:
+        set[Domino]: Possible dominoes.
+
+    Raises:
+        ValueError: If value is None.
+    """
     if value is None:
         raise ValueError("value must be provided")
 
     result: set[Domino] = set()
-
     combinations: list[Combination] = find_combinations(count, value)
 
     for combination in combinations:
@@ -164,14 +177,25 @@ def find_possible_dominoes_with_total_count(
 def find_possible_dominoes_with_less_than(
     dominoes: set[Domino], count: int, value: int | None
 ) -> set[Domino]:
+    """Finds dominoes that can sum to less than a specific value.
+
+    Args:
+        dominoes (set[Domino]): Available dominoes.
+        count (int): Number of cells.
+        value (int | None): Threshold value.
+
+    Returns:
+        set[Domino]: Possible dominoes.
+
+    Raises:
+        ValueError: If value is None.
+    """
     if value is None:
         raise ValueError("value must be provided")
 
     result: set[Domino] = set()
-
     for i in range(0, value):
         combinations: list[Combination] = find_combinations(count, i)
-
         for combination in combinations:
             result.update(
                 find_subset_of_possible_dominoes_in_combination(combination, dominoes)
@@ -186,15 +210,24 @@ def find_possible_dominoes_with_less_than(
 def find_possible_dominoes_with_greater_than(
     dominoes: set[Domino], count: int, value: int | None
 ) -> set[Domino]:
+    """Finds dominoes that can sum to more than a specific value.
+
+    Args:
+        dominoes (set[Domino], count (int), value (int | None).
+
+    Returns:
+        set[Domino]: Possible dominoes.
+
+    Raises:
+        ValueError: If value is None.
+    """
     if value is None:
         raise ValueError("value must be provided")
 
     result: set[Domino] = set()
-
     upperbound: int = count * 6 + 1
     for i in range(value + 1, upperbound):
         combinations: list[Combination] = find_combinations(count, i)
-
         for combination in combinations:
             result.update(
                 find_subset_of_possible_dominoes_in_combination(combination, dominoes)
@@ -203,28 +236,37 @@ def find_possible_dominoes_with_greater_than(
     return result
 
 
+def dot_frequency(dominoes: list[Domino], dot: int) -> int:
+    result = 0
+    for domino in dominoes:
+        if domino.left == dot:
+            result += 1
+        elif domino.right == dot:
+            result += 1
+    return result
+
+
 class Board:
+    """Represents the game board, managing pips, constraints and placements.
+
+    Attributes:
+        n_row (int): Total rows.
+        n_col (int): Total columns.
+        constraint_list (list[Constraint]): All active constraints on the board.
+        board (list[list[int | None]]): Grid of pip values.
+        constraints (list[list[Constraint]]): Grid of constraints per cell.
+        possible_dominoes (list[list[set[Domino]]]): Pre-calculated valid dominoes per cell.
+        sorted_positions (list[Position]): Positions sorted by constraint restrictiveness.
+        cell_colors (list[list[str]]): Colors assigned to cells for visualization.
+        color_index (int): Current index in the color sequence.
+    """
+
     def __init__(self, width: int, height: int):
-        """
-        Initializes the game board.
+        """Initializes the Board.
 
         Args:
-            width (int): The number of columns on the board.
-            height (int): The number of rows on the board.
-
-        Attributes:
-            n_row (int): The number of rows.
-            n_col (int): The number of columns.
-            constraints (list[Constraint]): A list of constraints applied to the board.
-            board (list[list[int | None]]): A 2D list representing the board state,
-                where each cell contains a number (0-6) or None if empty. -1 represents
-                a dead cell.
-            state (list[list[tuple[ConstraintType, any]]]): A 2D list storing the
-                constraint type and value for each cell.
-            possible_dominoes (list[list[set[Domino]]]): A 2D list where each cell
-                contains a set of dominoes that could potentially be placed there.
-            sorted_positions (list[tuple[int, int]]): A list of all board positions,
-                sorted by the number of possible dominoes for that position.
+            width (int): Number of columns.
+            height (int): Number of rows.
         """
         self.n_row = height
         self.n_col = width
@@ -243,14 +285,24 @@ class Board:
             [set() for _ in range(self.n_col)] for _ in range(self.n_row)
         ]
         self.sorted_positions: list[Position] = []
-        # Initialize cell colors with white for all cells
         self.cell_colors: list[list[str]] = [
             ["white" for _ in range(self.n_col)] for _ in range(self.n_row)
         ]
-        # Track current color index for domino coloring
         self.color_index = 0
 
+    def sort_constraints(self) -> None:
+        """Sorts the constraints by restrictiveness."""
+        self.constraint_list.sort(key=lambda x: x.get_restrictiveness())
+
     def add_constraint(self, constraint: Constraint) -> None:
+        """Adds a puzzle constraint to the board.
+
+        Args:
+            constraint (Constraint): The constraint object to add.
+
+        Raises:
+            ValueError: If a position in the constraint is already occupied.
+        """
         for position in constraint.positions:
             if self.board[position.row][position.col] is not None:
                 raise ValueError(f"Position {position} is already occupied")
@@ -296,9 +348,23 @@ class Board:
         self.constraint_list.append(constraint)
 
     def cell(self, row: int, col: int) -> int | None:
+        """Returns the value of a specific cell.
+
+        Args:
+            row (int): Row index.
+            col (int): Column index.
+
+        Returns:
+            int | None: Pip value or None if empty.
+        """
         return self.board[row][col]
 
     def generate_possible_dominoes(self, available_dominoes: set[Domino]):
+        """Pre-calculates which dominoes can fit into each cell based on constraints.
+
+        Args:
+            available_dominoes (set[Domino]): The set of dominoes currently in hand.
+        """
         distribution: dict[int, int] = value_distribution(list(available_dominoes))
         logging.debug(f"{distribution=}")
 
@@ -325,7 +391,6 @@ class Board:
 
                 case ConstraintType.EQUAL:
                     minimum_count = len(constraint.positions)
-                    # find all values that has at least the minimum count
                     result = set()
                     for i in range(0, 7):
                         if i in distribution.keys():
@@ -377,29 +442,21 @@ class Board:
         self.sorted_positions = self.sorted_positions[starts_from:]
 
     def place_domino(
-        self, domino: Domino, position: Position, direction: Direction
+        self,
+        domino: Domino,
+        position: Position,
+        direction: Direction,
+        available_dominoes: list[Domino],
     ) -> bool:
-        """
-        Tries to place a domino on the board at a given position and direction.
-
-        This method performs several checks before placing the domino:
-        1.  Validates that the starting and ending positions are within the board boundaries.
-        2.  Ensures that both cells the domino would occupy are currently empty.
-        3.  Verifies that the given domino is a possible candidate for both cells
-            (or its reversed version is).
-        4.  After placing the domino, it checks if the new board state violates any
-            partial constraints.
-
-        If any check fails, the board is reverted to its state before the attempt,
-        and the method returns False.
+        """Tries to place a domino on the board at a given position and direction.
 
         Args:
-            domino: The domino to be placed.
-            position: The (row, col) tuple for the 'left' side of the domino.
-            direction: The direction to place the 'right' side of the domino.
+            domino (Domino): The domino to place.
+            position (Position): The starting cell.
+            direction (Direction): The direction of the second cell.
 
         Returns:
-            True if the domino was placed successfully, False otherwise.
+            bool: True if placed successfully, False otherwise.
         """
         row1, col1 = position.row, position.col
         if not (0 <= row1 < self.n_row and 0 <= col1 < self.n_col):
@@ -445,16 +502,14 @@ class Board:
             logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
             return False
 
-        # Get current color for this domino and assign to both cells
         current_color = color_sequence[self.color_index]
         self.board[row1][col1] = domino.left
         self.board[row2][col2] = domino.right
         self.cell_colors[row1][col1] = current_color
         self.cell_colors[row2][col2] = current_color
-        # Move to next color in sequence, wrapping around if needed
         self.color_index = (self.color_index + 1) % len(color_sequence)
 
-        if not self.check_partial_constraints():
+        if not self.check_partial_constraints(available_dominoes):
             logging.debug(
                 f"Domino {domino} violates partial constraints at {position} {direction}"
             )
@@ -466,6 +521,7 @@ class Board:
         return True
 
     def sort_positions(self):
+        """Sorts all board positions by the number of possible dominoes (most constrained first)."""
         self.sorted_positions = [
             Position(row=i, col=j) for i in range(self.n_row) for j in range(self.n_col)
         ]
@@ -474,13 +530,31 @@ class Board:
         )
 
     def find_next_empty_cell(self) -> Position | None:
-        # first if there are cells that are of ConstraitType total and only one position and not occupied, select it
+        """Finds the next empty cell based on sorted positions.
+
+        Returns:
+            Position | None: The next Position to fill, or None if the board is full.
+        """
         for position in self.sorted_positions:
             if self.cell(position.row, position.col) is None:
                 return position
         return None
 
-    def _check_constraint(self, constraint: Constraint, is_partial: bool) -> bool:
+    def _check_constraint(
+        self,
+        constraint: Constraint,
+        available_dominoes: list[Domino],
+        is_partial: bool,
+    ) -> bool:
+        """Internal method to check if a single constraint is satisfied.
+
+        Args:
+            constraint (Constraint): The constraint to check.
+            is_partial (bool): If True, checks if the constraint can still be satisfied.
+
+        Returns:
+            bool: True if satisfied/possible, False otherwise.
+        """
         match constraint.constraint_type:
             case ConstraintType.FREE:
                 return True
@@ -502,6 +576,7 @@ class Board:
 
             case ConstraintType.EQUAL:
                 value = None
+                need_to_fill = 0
                 for position in constraint.positions:
                     cell_value = self.board[position.row][position.col]
                     if cell_value is not None:
@@ -509,6 +584,11 @@ class Board:
                             value = cell_value
                         elif cell_value != value:
                             return False
+                    else:
+                        need_to_fill += 1
+                if value:
+                    if need_to_fill > dot_frequency(available_dominoes, value):
+                        return False
 
             case ConstraintType.NE:
                 value_set = set()
@@ -570,13 +650,10 @@ class Board:
                         empty_cells += 1
                         is_complete = False
 
-                # If all cells are filled, check if total is actually greater than constraint value
                 if is_complete:
                     if total <= constraint.value:
                         return False
                 else:
-                    # Even if we fill all remaining empty cells with maximum possible value (6),
-                    # we still can't reach the required sum - this state is impossible
                     max_possible_total = total + (empty_cells * 6)
                     if max_possible_total <= constraint.value:
                         return False
@@ -588,20 +665,37 @@ class Board:
 
         return True
 
-    def check_constraints(self):
+    def check_constraints_(self):
+        """Checks if all constraints are fully satisfied.
+
+        Returns:
+            bool: True if all are satisfied, False otherwise.
+        """
         self.print_board()
         for constraint in self.constraint_list:
             if not self._check_constraint(constraint, is_partial=False):
                 return False
         return True
 
-    def check_partial_constraints(self):
+    def check_partial_constraints(self, available_dominoes: list[Domino]):
+        """Checks if current placements do not yet violate any constraints.
+
+        Returns:
+            bool: True if no violations found, False otherwise.
+        """
         for constraint in self.constraint_list:
-            if not self._check_constraint(constraint, is_partial=True):
+            if not self._check_constraint(
+                constraint, available_dominoes, is_partial=True
+            ):
                 return False
         return True
 
     def __repr__(self):
+        """Returns a colored string representation of the board.
+
+        Returns:
+            str: The visualized grid.
+        """
         result = ""
         for i, row in enumerate(self.board):
             colored_cells = []
@@ -616,11 +710,16 @@ class Board:
         return result
 
     def print_possible_dominoes(self):
+        """Prints the possible dominoes for each cell to the console."""
         for i, row in enumerate(self.possible_dominoes):
             for j, col in enumerate(row):
                 print(f"{i},{j}: {col}")
 
     def print_constraints(self):
+        """Prints a visualization of the board's constraints.
+
+        Colors are used to group cells belonging to the same constraint.
+        """
         color_generator = get_next_color()
         board_constraints = [
             [(" . ", "white") for _ in range(self.n_col)] for _ in range(self.n_row)
@@ -689,16 +788,27 @@ class Board:
             print("|" + "|".join([colored(cell, color) for cell, color in row]) + "|")
 
     def print_board(self):
+        """Prints the current board state to the console."""
         print(self.__repr__())
 
     def __hash__(self):
-        # Hash only the immutable board state that affects solvability
-        # Convert the 2D board list to a tuple of tuples so it's hashable
+        """Computes a hash based on the current pip values of the board.
+
+        Returns:
+            int: Hash value.
+        """
         board_tuple = tuple(tuple(row) for row in self.board)
         return hash(board_tuple)
 
     def __eq__(self, other):
+        """Checks if two boards are identical in state.
+
+        Args:
+            other (object): The board to compare with.
+
+        Returns:
+            bool: True if states match, False otherwise.
+        """
         if not isinstance(other, Board):
             return False
-        # Two boards are equal if their board states are identical
         return self.board == other.board

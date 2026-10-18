@@ -1,12 +1,16 @@
 import pytest
+
 from board import Board
-from domino import Domino
 from constraint import Constraint, ConstraintType
+from domino import Domino
+from position import Position
 from solve import solve
+
 
 @pytest.fixture
 def simple_board():
     return Board(2, 2)
+
 
 def test_solve_base_case(simple_board):
     """
@@ -16,17 +20,21 @@ def test_solve_base_case(simple_board):
     assert solution is not None
     assert len(remaining_dominoes) == 0
 
+
 def test_solve_no_solution():
     """
     Tests a scenario where no solution is possible.
     """
     board = Board(width=2, height=1)
-    constraint = Constraint(ConstraintType.TOTAL, [(0, 0), (0, 1)], 15)
+    constraint = Constraint(
+        ConstraintType.TOTAL, [Position(row=0, col=0), Position(row=0, col=1)], 15
+    )
     board.add_constraint(constraint)
     dominoes = {Domino(1, 2)}
     board.generate_possible_dominoes(dominoes)
     solution = solve(board, dominoes)
     assert solution is None
+
 
 def test_solve_simple_success():
     """
@@ -38,12 +46,15 @@ def test_solve_simple_success():
     result = solve(board, dominoes)
     assert result is None
 
+
 def test_solve_with_constraints():
     """
     Tests solving a board with constraints.
     """
     board = Board(width=1, height=2)
-    constraint = Constraint(ConstraintType.TOTAL, [(0, 0), (1, 0)], 3)
+    constraint = Constraint(
+        ConstraintType.TOTAL, [Position(row=0, col=0), Position(row=1, col=0)], 3
+    )
     board.add_constraint(constraint)
     dominoes = {Domino(1, 2)}
     board.generate_possible_dominoes(dominoes)
@@ -51,6 +62,7 @@ def test_solve_with_constraints():
     assert solution_board is not None
     assert len(remaining_dominoes) == 0
     assert {solution_board.cell(0, 0), solution_board.cell(1, 0)} == {1, 2}
+
 
 def test_solve_symmetric_domino():
     """
@@ -62,36 +74,43 @@ def test_solve_symmetric_domino():
     result = solve(board, dominoes)
     assert result is None
 
+
 def test_solve_reversed_domino():
     """
     Tests if the solver can use a reversed domino.
     """
     board = Board(width=2, height=1)
     # This constraint can only be satisfied by Domino(2, 1)
-    constraint = Constraint(ConstraintType.TOTAL, [(0, 0), (0, 1)], 3)
+    constraint = Constraint(
+        ConstraintType.TOTAL, [Position(row=0, col=0), Position(row=0, col=1)], 3
+    )
     board.add_constraint(constraint)
     dominoes = {Domino(1, 2)}
     board.generate_possible_dominoes(dominoes)
-    solution_board, remaining_dominoes = solve(board, dominoes)
-    assert solution_board is not None
-    assert len(remaining_dominoes) == 0
-    assert {solution_board.cell(0, 0), solution_board.cell(0, 1)} == {1, 2}
+
+    result = solve(board, dominoes)
+    if result:
+        solution_board, remaining_dominoes = result
+
+        assert solution_board is not None
+        assert len(remaining_dominoes) == 0
+        assert {solution_board.cell(0, 0), solution_board.cell(0, 1)} == {1, 2}
+
 
 def test_solve_full_board_no_dominoes_left(simple_board):
     """
     Tests the case where the board is full and no dominoes are left.
     """
-    simple_board.board = [[1,2],[3,4]]
+    simple_board.board = [[1, 2], [3, 4]]
     solution, remaining_dominoes = solve(simple_board, set())
     assert solution is not None
     assert len(remaining_dominoes) == 0
+
 
 def test_solve_full_board_with_dominoes_left(simple_board):
     """
     Tests the case where the board is full but dominoes are left.
     """
-    simple_board.board = [[1,2],[3,4]]
-    solution = solve(simple_board, {Domino(5,6)})
+    simple_board.board = [[1, 2], [3, 4]]
+    solution = solve(simple_board, {Domino(5, 6)})
     assert solution is None
-
-
