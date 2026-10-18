@@ -463,9 +463,6 @@ class Board:
             logging.debug(f"Start position {position} is out of bounds")
             return False
 
-        saved_board = copy.deepcopy(self.board)
-        saved_colors = copy.deepcopy(self.cell_colors)
-
         if self.board[row1][col1] is not None:
             logging.debug(f"Position {position} is already occupied")
             return False
@@ -502,6 +499,13 @@ class Board:
             logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
             return False
 
+        # Save original values before modification
+        orig_board1 = self.board[row1][col1]
+        orig_board2 = self.board[row2][col2]
+        orig_color1 = self.cell_colors[row1][col1]
+        orig_color2 = self.cell_colors[row2][col2]
+        orig_color_index = self.color_index
+
         current_color = color_sequence[self.color_index]
         self.board[row1][col1] = domino.left
         self.board[row2][col2] = domino.right
@@ -513,8 +517,12 @@ class Board:
             logging.debug(
                 f"Domino {domino} violates partial constraints at {position} {direction}"
             )
-            self.board = saved_board
-            self.cell_colors = saved_colors
+            # Restore original values instead of using deepcopy
+            self.board[row1][col1] = orig_board1
+            self.board[row2][col2] = orig_board2
+            self.cell_colors[row1][col1] = orig_color1
+            self.cell_colors[row2][col2] = orig_color2
+            self.color_index = orig_color_index
             return False
 
         logging.debug(f"Domino {domino} placed at {position} {direction}")
@@ -663,18 +671,6 @@ class Board:
                     f"Unknown constraint type: {constraint.constraint_type}"
                 )
 
-        return True
-
-    def check_constraints_(self):
-        """Checks if all constraints are fully satisfied.
-
-        Returns:
-            bool: True if all are satisfied, False otherwise.
-        """
-        self.print_board()
-        for constraint in self.constraint_list:
-            if not self._check_constraint(constraint, is_partial=False):
-                return False
         return True
 
     def check_partial_constraints(self, available_dominoes: list[Domino]):
