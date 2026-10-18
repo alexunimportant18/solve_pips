@@ -1,6 +1,6 @@
 [project]
 name = "solve_pips"
-version = "0.1.0"
+version = "1.0.0"
 description = "Script to solve the NYT pip puzzles"
 readme = "README.md"
 requires-python = ">=3.12"
