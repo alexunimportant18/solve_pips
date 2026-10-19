@@ -63,8 +63,8 @@ def solve(
         domino_to_remove = None
         if (
             candidate_domino in board.possible_dominoes[position.row][position.col]
-            or reverse_domino(candidate_domino)
-            in board.possible_dominoes[position.row][position.col]
+            #            or reverse_domino(candidate_domino)#
+            #            in board.possible_dominoes[position.row][position.col]
         ):
             domino_to_remove = candidate_domino
         else:
