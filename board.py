@@ -92,8 +92,7 @@ def find_subset_of_possible_dominoes_in_combination(
     for domino in domino_list:
         if domino.left == value or domino.right == value:
             possible_dominoes.add(domino)
-            remaining_dominoes = set(dominoes)
-            remaining_dominoes.remove(domino)
+            remaining_dominoes = dominoes - {domino}
 
             remaining_combination = combination.copy()
             remaining_combination.remove(value)
@@ -106,38 +105,6 @@ def find_subset_of_possible_dominoes_in_combination(
                 possible_dominoes.update(
                     find_subset_of_possible_dominoes_in_combination(
                         remaining_combination, remaining_dominoes
-                    )
-                )
-
-    return possible_dominoes
-
-
-def find_subset_of_possible_dominoes_in_combination_old(
-    combination: Combination, dominoes: set[Domino]
-) -> set[Domino]:
-    """Legacy version of combination subset finding.
-
-    Args:
-        combination (Combination): Target values.
-        dominoes (set[Domino]): Available dominoes.
-
-    Returns:
-        set[Domino]: Possible dominoes.
-    """
-    possible_dominoes: set[Domino] = set()
-    if len(combination) == 0:
-        return possible_dominoes
-
-    value: int = combination[0]
-    for domino in dominoes:
-        temp: set[Domino] = copy.deepcopy(dominoes)
-        if domino.left == value or domino.right == value:
-            possible_dominoes.add(domino)
-            temp.remove(domino)
-            if len(temp) > 0:
-                possible_dominoes.update(
-                    find_subset_of_possible_dominoes_in_combination(
-                        combination[1:], temp
                     )
                 )
 
@@ -470,7 +437,7 @@ class Board:
 
         if (
             domino not in self.possible_dominoes[row1][col1]
-            and reverse_domino(domino) not in self.possible_dominoes[row1][col1]
+            # and reverse_domino(domino) not in self.possible_dominoes[row1][col1]
         ):
             logging.debug(f"Domino {domino} is not possible at {position}")
             return False
@@ -495,7 +462,7 @@ class Board:
 
         if (
             domino not in self.possible_dominoes[row2][col2]
-            and reverse_domino(domino) not in self.possible_dominoes[row2][col2]
+            # and reverse_domino(domino) not in self.possible_dominoes[row2][col2]
         ):
             logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
             return False
@@ -514,11 +481,9 @@ class Board:
         self.cell_colors[row2][col2] = current_color
         self.color_index = (self.color_index + 1) % len(color_sequence)
 
-        remaining_dominoes = []
-        for d in available_dominoes:
-            if d == domino_to_remove:
-                continue
-            remaining_dominoes.append(Domino(d.left, d.right))
+        remaining_dominoes = [
+            item for item in available_dominoes if item != domino_to_remove
+        ]
         # remaining_dominoes = available_dominoes
         if remaining_dominoes:
             if not self.check_partial_constraints(remaining_dominoes):

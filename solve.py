@@ -118,13 +118,7 @@ def solve(
                     list(available_dominoes),
                     domino_to_remove,
                 ):
-                    remaining_dominoes = set()
-                    for d in available_dominoes:
-                        if d == domino_to_remove:
-                            continue
-                        remaining_dominoes.add(Domino(d.left, d.right))
-
-                    # Recurse with the same board instance (we'll backtrack later)
+                    remaining_dominoes = available_dominoes - {domino_to_remove}
                     result = solve(board, remaining_dominoes)
 
                     if result is not None:
