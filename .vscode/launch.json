@@ -7,7 +7,7 @@
             "python": "${workspaceFolder}/.venv/bin/python",
             "program": "${workspaceFolder}/solve_pips.py",
             "console": "integratedTerminal",
-            "args": "-c 261017.csv"
+            "args": "-c 261026.csv"
         }
     ]
 }

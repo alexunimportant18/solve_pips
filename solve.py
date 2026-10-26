@@ -12,6 +12,8 @@ from domino import Domino, reverse_domino
 
 # Memoization cache to store failed board states, it can save up to 33% time
 cache_stats = {"failed_states": set(), "call_saved": 0, "call_total": 0}
+# global solve_called
+solve_called = 0
 
 
 def solve(
@@ -32,7 +34,9 @@ def solve(
         tuple[Board, set[Domino]] | None: A tuple of the solved Board and remaining
             dominoes if a solution is found; otherwise None.
     """
+    global solve_called
     # Base case: If there are no dominoes left to place, we have found a solution.
+    solve_called += 1
     if not available_dominoes:
         print("\nSolution found!")
         return board, available_dominoes
@@ -63,8 +67,8 @@ def solve(
         domino_to_remove = None
         if (
             candidate_domino in board.possible_dominoes[position.row][position.col]
-            #            or reverse_domino(candidate_domino)#
-            #            in board.possible_dominoes[position.row][position.col]
+            # or reverse_domino(candidate_domino)  #
+            # in board.possible_dominoes[position.row][position.col]
         ):
             domino_to_remove = candidate_domino
         else:
@@ -108,16 +112,26 @@ def solve(
 
                 # Try to place the domino.
                 if board.place_domino(
-                    placement_orientation, position, direction, list(available_dominoes)
+                    placement_orientation,
+                    position,
+                    direction,
+                    list(available_dominoes),
+                    domino_to_remove,
                 ):
-                    remaining_dominoes = set(available_dominoes)
-                    remaining_dominoes.remove(domino_to_remove)
+                    remaining_dominoes = set()
+                    for d in available_dominoes:
+                        if d == domino_to_remove:
+                            continue
+                        remaining_dominoes.add(Domino(d.left, d.right))
 
                     # Recurse with the same board instance (we'll backtrack later)
                     result = solve(board, remaining_dominoes)
 
                     if result is not None:
                         return result
+                    # else:
+                    # print(f"{solve_called=}")
+                    # board.print_board()
 
                 # Always undo the changes to the board
                 board.board[row1][col1] = orig_board1

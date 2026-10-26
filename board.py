@@ -241,7 +241,7 @@ def dot_frequency(dominoes: list[Domino], dot: int) -> int:
     for domino in dominoes:
         if domino.left == dot:
             result += 1
-        elif domino.right == dot:
+        if domino.right == dot:
             result += 1
     return result
 
@@ -447,6 +447,7 @@ class Board:
         position: Position,
         direction: Direction,
         available_dominoes: list[Domino],
+        domino_to_remove: Domino,
     ) -> bool:
         """Tries to place a domino on the board at a given position and direction.
 
@@ -513,17 +514,24 @@ class Board:
         self.cell_colors[row2][col2] = current_color
         self.color_index = (self.color_index + 1) % len(color_sequence)
 
-        if not self.check_partial_constraints(available_dominoes):
-            logging.debug(
-                f"Domino {domino} violates partial constraints at {position} {direction}"
-            )
-            # Restore original values instead of using deepcopy
-            self.board[row1][col1] = orig_board1
-            self.board[row2][col2] = orig_board2
-            self.cell_colors[row1][col1] = orig_color1
-            self.cell_colors[row2][col2] = orig_color2
-            self.color_index = orig_color_index
-            return False
+        remaining_dominoes = []
+        for d in available_dominoes:
+            if d == domino_to_remove:
+                continue
+            remaining_dominoes.append(Domino(d.left, d.right))
+        # remaining_dominoes = available_dominoes
+        if remaining_dominoes:
+            if not self.check_partial_constraints(remaining_dominoes):
+                logging.debug(
+                    f"Domino {domino} violates partial constraints at {position} {direction}"
+                )
+                # Restore original values instead of using deepcopy
+                self.board[row1][col1] = orig_board1
+                self.board[row2][col2] = orig_board2
+                self.cell_colors[row1][col1] = orig_color1
+                self.cell_colors[row2][col2] = orig_color2
+                self.color_index = orig_color_index
+                return False
 
         logging.debug(f"Domino {domino} placed at {position} {direction}")
         return True
