@@ -9,8 +9,8 @@ import pytest
 
 def get_test_puzzles():
     """Get all test puzzle files and their corresponding expected output files."""
-    data_dir = Path(__file__).parent / "data"
-    output_dir = Path(__file__).parent / "output"
+    data_dir = Path(__file__).parent / "integration" / "input"
+    output_dir = Path(__file__).parent / "integration" / "output"
 
     puzzles = []
     for csv_file in data_dir.glob("*.csv"):
@@ -76,7 +76,7 @@ def test_puzzle_solution(csv_path, expected_path, capsys):
     runtime = end_time - start_time
     # Print the runtime - use capsys to ensure it's visible even if pytest captures output
     with capsys.disabled():
-        print(f"Puzzle {csv_path} runtime: {runtime:.2f} seconds")
+        print(f"\nPuzzle {csv_path} runtime: {runtime:.2f} seconds")
 
     # Check that the program ran successfully
     assert result.returncode == 0, f"solve_pips.py failed with error: {result.stderr}"

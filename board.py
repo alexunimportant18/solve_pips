@@ -237,7 +237,7 @@ class Board:
         """
         self.n_row = height
         self.n_col = width
-        self.constraint_list = []
+        self.constraint_list: list[Constraint] = []
         self.board: list[list[int | None]] = [
             [None for _ in range(self.n_col)] for _ in range(self.n_row)
         ]
@@ -459,6 +459,15 @@ class Board:
         if self.board[row2][col2] is not None:
             logging.debug(f"Position {(row2, col2)} is already occupied")
             return False
+
+        for constraint in self.constraint_list:
+            if constraint.constraint_type == ConstraintType.NE:
+                if (
+                    Position(row=row1, col=col1) in constraint.positions
+                    and Position(row=row2, col=col2) in constraint.positions
+                ):
+                    if domino.left == domino.right:
+                        return False
 
         if (
             domino not in self.possible_dominoes[row2][col2]
