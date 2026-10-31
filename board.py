@@ -7,7 +7,7 @@ from termcolor import colored
 from combination import Combination
 from constraint import Constraint, ConstraintType
 from direction import Direction
-from domino import Domino, reverse_domino, value_distribution
+from domino import Domino, value_distribution
 from position import Position
 
 color_sequence = [
@@ -94,8 +94,9 @@ def find_subset_of_possible_dominoes_in_combination(
             possible_dominoes.add(domino)
             remaining_dominoes = dominoes - {domino}
 
-            remaining_combination = combination.copy()
-            remaining_combination.remove(value)
+            # remaining_combination = combination.copy()
+            # remaining_combination.remove(value)
+            remaining_combination = [v for v in combination if v != value]
 
             other_value = domino.right if domino.left == value else domino.left
             if other_value in remaining_combination:
@@ -332,26 +333,26 @@ class Board:
         Args:
             available_dominoes (set[Domino]): The set of dominoes currently in hand.
         """
-        distribution: dict[int, int] = value_distribution(list(available_dominoes))
-        logging.debug(f"{distribution=}")
+        distribution: dict[int, int] = value_distribution(available_dominoes)
 
         for constraint in self.constraint_list:
             match constraint.constraint_type:
                 case ConstraintType.FREE | ConstraintType.NE:
                     for position in constraint.positions:
-                        self.possible_dominoes[position.row][position.col] = set(
+                        self.possible_dominoes[position.row][position.col] = (
                             available_dominoes
                         )
 
                 case ConstraintType.VALUE:
                     for position in constraint.positions:
-                        possible_dominoes = set()
-                        for domino in available_dominoes:
+                        possible_dominoes = {
+                            d
+                            for d in available_dominoes
                             if (
-                                domino.left == constraint.value
-                                or domino.right == constraint.value
-                            ):
-                                possible_dominoes.add(domino)
+                                d.left == constraint.value
+                                or d.right == constraint.value
+                            )
+                        }
                         self.possible_dominoes[position.row][position.col] = (
                             possible_dominoes
                         )
@@ -359,12 +360,15 @@ class Board:
                 case ConstraintType.EQUAL:
                     minimum_count = len(constraint.positions)
                     result = set()
-                    for i in range(0, 7):
-                        if i in distribution.keys():
-                            if distribution[i] >= minimum_count:
-                                for domino in available_dominoes:
-                                    if domino.left == i or domino.right == i:
-                                        result.add(domino)
+                    for i in distribution.keys():
+                        if distribution[i] >= minimum_count:
+                            result.update(
+                                {
+                                    domino
+                                    for domino in available_dominoes
+                                    if domino.left == i or domino.right == i
+                                }
+                            )
 
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = result
@@ -465,9 +469,9 @@ class Board:
                 if (
                     Position(row=row1, col=col1) in constraint.positions
                     and Position(row=row2, col=col2) in constraint.positions
+                    and domino.left == domino.right
                 ):
-                    if domino.left == domino.right:
-                        return False
+                    return False
 
         if (
             domino not in self.possible_dominoes[row2][col2]
@@ -555,9 +559,8 @@ class Board:
 
                 for position in constraint.positions:
                     cell_value = self.board[position.row][position.col]
-                    if cell_value is not None:
-                        if cell_value != constraint.value:
-                            return False
+                    if cell_value is not None and cell_value != constraint.value:
+                        return False
 
             case ConstraintType.DEAD:
                 for position in constraint.positions:

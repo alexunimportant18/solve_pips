@@ -19,14 +19,14 @@ def reverse_domino(other: Domino) -> Domino:
     return Domino(other.right, other.left)
 
 
-def value_distribution(dominoes: list[Domino]) -> dict[int, int]:
+def value_distribution(dominoes: set[Domino]) -> dict[int, int]:
     """Calculates the total count of each pip value across a set of dominoes.
 
     Args:
         dominoes (list[Domino]): A list of dominoes to analyze.
 
     Returns:
-        dict[int, int]: A dictionary where keys are pip values (0-6) and 
+        dict[int, int]: A dictionary where keys are pip values (0-6) and
             values are the number of times that pip appears.
     """
     distribution = {}

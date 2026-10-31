@@ -6,6 +6,15 @@ from pathlib import Path
 
 import pytest
 
+#
+# Description of the tests
+#
+# 260827.csv is to test the caching really works (it will failed in timeout if cache is not working)
+# 261027.csv is to test the case on domino with same left and right dot cannot satsify the NE constraint
+# 261017.csv is to test the input file using ! instead of !=, but the puzzle should also be solved
+# 261026.csv will loop forever if the _check_constraint has a bug
+#
+
 
 def get_test_puzzles():
     """Get all test puzzle files and their corresponding expected output files."""
@@ -28,9 +37,9 @@ def normalize_output(output: str) -> str:
     output = ansi_escape.sub("", output)
 
     # Remove cache statistics lines which may vary between runs
-    output = re.sub(r"Cache statistics:.*?\n", "", output, flags=re.DOTALL)
-    output = re.sub(r"  Total function calls:.*?\n", "", output)
-    output = re.sub(r"  Function calls cached:.*?\n", "", output)
+    # output = re.sub(r"Cache statistics:.*?\n", "", output, flags=re.DOTALL)
+    # output = re.sub(r"  Total function calls:.*?\n", "", output)
+    # output = re.sub(r"  Function calls cached:.*?\n", "", output)
 
     # Normalize newlines and strip extra whitespace
     output = os.linesep.join(
