@@ -1,22 +1,41 @@
 from collections import namedtuple
+from enum import Enum
 
 Domino = namedtuple("Domino", ("left", "right"))
 Domino.__repr__ = lambda self: f"[{self.left}|{self.right}]"
 
-Domino.__eq__ = lambda self, other: {self.left, self.right} == {other.left, other.right}
-Domino.__hash__ = lambda self: hash(frozenset([self.left, self.right]))
+
+def __eq__(self: Domino, other: object) -> bool:
+    if not isinstance(other, Domino):
+        return NotImplemented
+    return {self.left, self.right} == {other.left, other.right}
 
 
-def reverse_domino(other: Domino) -> Domino:
-    """Returns a new Domino with the left and right values swapped.
+Domino.__eq__ = __eq__
+
+
+def __hash__(self: Domino) -> int:
+    return hash(frozenset([self.left, self.right]))
+
+
+Domino.__hash__ = __hash__
+
+
+class Side(Enum):
+    LEFT = 1
+    RIGHT = 2
+
+
+def reverse_domino(domino: Domino) -> Domino:
+    """Returnsverses the order of the pips in a domino.
 
     Args:
-        other (Domino): The domino to reverse.
+        domino (Domino): The domino to reverse.
 
     Returns:
-        Domino: A new Domino instance with swapped values.
+        Domino: The reversed domino.
     """
-    return Domino(other.right, other.left)
+    return Domino(domino.right, domino.left)
 
 
 def value_distribution(dominoes: set[Domino]) -> dict[int, int]:

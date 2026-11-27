@@ -1,14 +1,9 @@
 import logging
 from argparse import Namespace
 
-from board import Board
-from constraint import Constraint, ConstraintType
-from domino import Domino
 from options import Options
 from readfile import read_csv, read_toml
 from solve import cache_stats, solve
-
-logging.basicConfig(level=logging.INFO)
 
 
 def main():
@@ -29,6 +24,13 @@ def main():
             datefmt="%Y-%m-%d:%H:%M:%S",
             level=logging.INFO,
         )
+    elif opt.debug:
+        logging.basicConfig(
+            format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+            datefmt="%Y-%m-%d:%H:%M:%S",
+            level=logging.DEBUG,
+        )
+        logging.debug("Setting logging level to DEBUG")
     else:
         logging.basicConfig(
             format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",

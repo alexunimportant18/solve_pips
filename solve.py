@@ -1,19 +1,15 @@
-import copy
-import functools
 import logging
-import math
-from functools import lru_cache
-from itertools import combinations_with_replacement, permutations
 
-from board import Board, color_sequence
-from constraint import ConstraintType
+from board import Board
 from direction import Direction
 from domino import Domino, reverse_domino
+from position import Position
 
 # Memoization cache to store failed board states, it can save up to 33% time
 cache_stats = {"failed_states": set(), "call_saved": 0, "call_total": 0}
 # global solve_called
 solve_called = 0
+trace = False
 
 
 def solve(
@@ -41,6 +37,8 @@ def solve(
         print("\nSolution found!")
         return board, available_dominoes
 
+    logging.debug(f"Available dominoes: {available_dominoes}")
+
     # Increment total function calls every time solve() is called
     state_key = None
 
@@ -59,19 +57,26 @@ def solve(
     # Find the next empty cell to fill. If the board is full but we still have
     # dominoes, this path is invalid.
     position = board.find_next_empty_cell()
+    logging.debug(f"Next empty cell: {position}")
     if position is None:
+        logging.debug("No empty cells")
         return None
 
     # Iterate through all dominoes that could possibly be placed at the current empty cell.
     for candidate_domino in available_dominoes:
         domino_to_remove = None
         if (
-            candidate_domino in board.possible_dominoes[position.row][position.col]
+            any(
+                candidate_domino == d[0]
+                for d in board.possible_dominoes[position.row][position.col]
+            )
             # or reverse_domino(candidate_domino)  #
             # in board.possible_dominoes[position.row][position.col]
         ):
             domino_to_remove = candidate_domino
+            logging.debug(f"Removing {domino_to_remove} from available_dominoes")
         else:
+            logging.debug(f"Domino {candidate_domino} is not possible at {position}")
             continue
 
         # We have the domino. Now try to place it in all valid orientations and directions.
@@ -111,6 +116,9 @@ def solve(
                 orig_color_index = board.color_index
 
                 # Try to place the domino.
+                logging.debug(
+                    f"Try to placing domino {domino_to_remove}, {placement_orientation} at {position} {direction}"
+                )
                 if board.place_domino(
                     placement_orientation,
                     position,
@@ -123,9 +131,10 @@ def solve(
 
                     if result is not None:
                         return result
-                    # else:
-                    # print(f"{solve_called=}")
-                    # board.print_board()
+                    else:
+                        if trace:
+                            print(f"{solve_called=}")
+                            board.print_board()
 
                 # Always undo the changes to the board
                 board.board[row1][col1] = orig_board1

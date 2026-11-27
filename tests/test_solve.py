@@ -58,6 +58,7 @@ def test_solve_with_constraints():
     board.add_constraint(constraint)
     dominoes = {Domino(1, 2)}
     board.generate_possible_dominoes(dominoes)
+    trace = True
     solution_board, remaining_dominoes = solve(board, dominoes)
     assert solution_board is not None
     assert len(remaining_dominoes) == 0

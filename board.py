@@ -1,4 +1,3 @@
-import copy
 import logging
 from typing import Generator
 
@@ -7,7 +6,7 @@ from termcolor import colored
 from combination import Combination
 from constraint import Constraint, ConstraintType
 from direction import Direction
-from domino import Domino, value_distribution
+from domino import Domino, Side, value_distribution
 from position import Position
 
 color_sequence = [
@@ -33,7 +32,7 @@ def get_next_color() -> Generator[str, None, None]:
         yield from color_sequence
 
 
-def find_combinations(n: int, t: int) -> list[Combination]:
+def find_combinations_with_total(n: int, t: int) -> list[Combination]:
     """Finds all possible combinations of N numbers (0-6) that sum up to T.
 
     Args:
@@ -71,9 +70,24 @@ def find_combinations(n: int, t: int) -> list[Combination]:
     return result
 
 
-def find_subset_of_possible_dominoes_in_combination(
+def group_possible_dominoes(
+    possible_dominoes: set[tuple[Domino, tuple[int, ...]]],
+) -> set[tuple[Domino, tuple[int, ...]]]:
+    # combine the sides for same domino
+
+    result: dict[Domino, tuple[int, ...]] = {}
+    for domino, sides in possible_dominoes:
+        if result.get(domino, None) is None:
+            result[domino] = tuple(sides)
+        else:
+            result[domino] = tuple(set(result[domino] + sides))
+
+    return set(result.items())
+
+
+def find_subset_of_possible_dominoes_in_combination_old(
     combination: Combination, dominoes: set[Domino]
-) -> set[Domino]:
+) -> set[tuple[Domino, tuple[int, ...]]]:
     """Finds dominoes that can satisfy the values in a specific combination.
 
     Args:
@@ -83,15 +97,22 @@ def find_subset_of_possible_dominoes_in_combination(
     Returns:
         set[Domino]: The set of dominoes that can be used to form the combination.
     """
-    possible_dominoes: set[Domino] = set()
+    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = set()
     if len(combination) == 0:
         return possible_dominoes
 
     value: int = combination[0]
     domino_list = list(dominoes)
+
     for domino in domino_list:
         if domino.left == value or domino.right == value:
-            possible_dominoes.add(domino)
+            sides = []
+            if domino.left == value:
+                sides.append(domino.left)
+            if domino.right == value:
+                sides.append(domino.right)
+            possible_dominoes.add((domino, tuple(sides)))
+
             remaining_dominoes = dominoes - {domino}
 
             # remaining_combination = combination.copy()
@@ -109,12 +130,60 @@ def find_subset_of_possible_dominoes_in_combination(
                     )
                 )
 
-    return possible_dominoes
+    result = group_possible_dominoes(possible_dominoes)
+    return result
+
+
+def find_subset_of_possible_dominoes_in_combination(
+    combination: Combination, dominoes: set[Domino]
+) -> set[tuple[Domino, tuple[int, ...]]]:
+    """Finds dominoes that can satisfy the values in a specific combination.
+
+    Args:
+        combination (Combination): A list of values that must be filled.
+        dominoes (set[Domino]): The set of available dominoes to choose from.
+
+    Returns:
+        set[Domino]: The set of dominoes that can be used to form the combination.
+    """
+    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = set()
+    if len(combination) == 0:
+        return possible_dominoes
+
+    value: int = combination[0]
+    domino_list = list(dominoes)
+
+    for domino in domino_list:
+        if domino.left == value or domino.right == value:
+            sides = []
+            if domino.left in combination:
+                sides.append(domino.left)
+            if domino.right in combination:
+                sides.append(domino.right)
+            possible_dominoes.add((domino, tuple(sides)))
+
+            remaining_dominoes = dominoes - {domino}
+
+            remaining_combination = combination.copy()
+            if domino.left in remaining_combination:
+                remaining_combination.remove(domino.left)
+            if domino.right in remaining_combination:
+                remaining_combination.remove(domino.right)
+
+            if len(remaining_combination) > 0 and len(remaining_dominoes) > 0:
+                possible_dominoes.update(
+                    find_subset_of_possible_dominoes_in_combination(
+                        remaining_combination, remaining_dominoes
+                    )
+                )
+
+    result = group_possible_dominoes(possible_dominoes)
+    return result
 
 
 def find_possible_dominoes_with_total_count(
     dominoes: set[Domino], count: int, value: int | None
-) -> set[Domino]:
+) -> set[tuple[Domino, tuple[int, ...]]]:
     """Finds dominoes that can sum to a specific total given a number of cells.
 
     Args:
@@ -131,20 +200,21 @@ def find_possible_dominoes_with_total_count(
     if value is None:
         raise ValueError("value must be provided")
 
-    result: set[Domino] = set()
-    combinations: list[Combination] = find_combinations(count, value)
+    result: set[tuple[Domino, tuple[int, ...]]] = set()
+    combinations: list[Combination] = find_combinations_with_total(count, value)
 
     for combination in combinations:
         result.update(
             find_subset_of_possible_dominoes_in_combination(combination, dominoes)
         )
 
+    result = group_possible_dominoes(result)
     return result
 
 
 def find_possible_dominoes_with_less_than(
     dominoes: set[Domino], count: int, value: int | None
-) -> set[Domino]:
+) -> set[tuple[Domino, tuple[int, ...]]]:
     """Finds dominoes that can sum to less than a specific value.
 
     Args:
@@ -161,9 +231,9 @@ def find_possible_dominoes_with_less_than(
     if value is None:
         raise ValueError("value must be provided")
 
-    result: set[Domino] = set()
+    result: set[tuple[Domino, tuple[int, ...]]] = set()
     for i in range(0, value):
-        combinations: list[Combination] = find_combinations(count, i)
+        combinations: list[Combination] = find_combinations_with_total(count, i)
         for combination in combinations:
             result.update(
                 find_subset_of_possible_dominoes_in_combination(combination, dominoes)
@@ -172,12 +242,14 @@ def find_possible_dominoes_with_less_than(
     logging.debug(
         f"find_possible_dominoes_with_less_than({dominoes}, {count}, {value}) = {result}"
     )
+
+    result = group_possible_dominoes(result)
     return result
 
 
 def find_possible_dominoes_with_greater_than(
     dominoes: set[Domino], count: int, value: int | None
-) -> set[Domino]:
+) -> set[tuple[Domino, tuple[int, ...]]]:
     """Finds dominoes that can sum to more than a specific value.
 
     Args:
@@ -192,15 +264,16 @@ def find_possible_dominoes_with_greater_than(
     if value is None:
         raise ValueError("value must be provided")
 
-    result: set[Domino] = set()
+    result: set[tuple[Domino, tuple[int, ...]]] = set()
     upperbound: int = count * 6 + 1
     for i in range(value + 1, upperbound):
-        combinations: list[Combination] = find_combinations(count, i)
+        combinations: list[Combination] = find_combinations_with_total(count, i)
         for combination in combinations:
             result.update(
                 find_subset_of_possible_dominoes_in_combination(combination, dominoes)
             )
 
+    result = group_possible_dominoes(result)
     return result
 
 
@@ -223,7 +296,7 @@ class Board:
         constraint_list (list[Constraint]): All active constraints on the board.
         board (list[list[int | None]]): Grid of pip values.
         constraints (list[list[Constraint]]): Grid of constraints per cell.
-        possible_dominoes (list[list[set[Domino]]]): Pre-calculated valid dominoes per cell.
+        possible_dominoes (set[tuple[Domino, tuple[int, ...]]]): Pre-calculated valid dominoes per cell.
         sorted_positions (list[Position]): Positions sorted by constraint restrictiveness.
         cell_colors (list[list[str]]): Colors assigned to cells for visualization.
         color_index (int): Current index in the color sequence.
@@ -249,7 +322,7 @@ class Board:
             ]
             for row in range(self.n_row)
         ]
-        self.possible_dominoes = [
+        self.possible_dominoes: list[list[set[tuple[Domino, tuple[int, ...]]]]] = [
             [set() for _ in range(self.n_col)] for _ in range(self.n_row)
         ]
         self.sorted_positions: list[Position] = []
@@ -338,67 +411,92 @@ class Board:
         for constraint in self.constraint_list:
             match constraint.constraint_type:
                 case ConstraintType.FREE | ConstraintType.NE:
+                    available_dominoes_with_sides: set[
+                        tuple[Domino, tuple[int, ...]]
+                    ] = set()
+                    for domino in available_dominoes:
+                        available_dominoes_with_sides.add(
+                            (domino, (domino.left, domino.right))
+                        )
                     for position in constraint.positions:
                         self.possible_dominoes[position.row][position.col] = (
-                            available_dominoes
+                            available_dominoes_with_sides
                         )
 
                 case ConstraintType.VALUE:
                     for position in constraint.positions:
-                        possible_dominoes = {
-                            d
-                            for d in available_dominoes
-                            if (
-                                d.left == constraint.value
-                                or d.right == constraint.value
-                            )
-                        }
+                        possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = set()
+                        for d in available_dominoes:
+                            sides = []
+                            if d.left == constraint.value:
+                                sides.append(d.left)
+                            if d.right == constraint.value:
+                                sides.append(d.right)
+
+                            if sides:
+                                possible_dominoes.add((d, tuple(sides)))
                         self.possible_dominoes[position.row][position.col] = (
                             possible_dominoes
                         )
 
                 case ConstraintType.EQUAL:
                     minimum_count = len(constraint.positions)
-                    result = set()
+                    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = set()
                     for i in distribution.keys():
                         if distribution[i] >= minimum_count:
-                            result.update(
-                                {
-                                    domino
-                                    for domino in available_dominoes
-                                    if domino.left == i or domino.right == i
-                                }
-                            )
+                            for domino in available_dominoes:
+                                sides: list[int] = []
+                                if domino.left == i:
+                                    sides.append(domino.left)
+                                if domino.right == i:
+                                    sides.append(domino.right)
+                                if sides:
+                                    possible_dominoes.add((domino, tuple(sides)))
 
+                    possible_dominoes = group_possible_dominoes(possible_dominoes)
                     for position in constraint.positions:
-                        self.possible_dominoes[position.row][position.col] = result
+                        self.possible_dominoes[position.row][position.col] = (
+                            possible_dominoes
+                        )
 
                 case ConstraintType.TOTAL:
                     count = len(constraint.positions)
                     value = constraint.value
-                    result = find_possible_dominoes_with_total_count(
-                        available_dominoes, count, value
+                    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = (
+                        find_possible_dominoes_with_total_count(
+                            available_dominoes, count, value
+                        )
                     )
                     for position in constraint.positions:
-                        self.possible_dominoes[position.row][position.col] = result
+                        self.possible_dominoes[position.row][position.col] = (
+                            possible_dominoes
+                        )
 
                 case ConstraintType.LT:
                     count: int = len(constraint.positions)
                     value: int | None = constraint.value
-                    result: set[Domino] = find_possible_dominoes_with_less_than(
-                        available_dominoes, count, value
+                    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = (
+                        find_possible_dominoes_with_less_than(
+                            available_dominoes, count, value
+                        )
                     )
                     for position in constraint.positions:
-                        self.possible_dominoes[position.row][position.col] = result
+                        self.possible_dominoes[position.row][position.col] = (
+                            possible_dominoes
+                        )
 
                 case ConstraintType.GT:
                     count: int = len(constraint.positions)
                     value: int | None = constraint.value
-                    result: set[Domino] = find_possible_dominoes_with_greater_than(
-                        available_dominoes, count, value
+                    possible_dominoes: set[tuple[Domino, tuple[int, ...]]] = (
+                        find_possible_dominoes_with_greater_than(
+                            available_dominoes, count, value
+                        )
                     )
                     for position in constraint.positions:
-                        self.possible_dominoes[position.row][position.col] = result
+                        self.possible_dominoes[position.row][position.col] = (
+                            possible_dominoes
+                        )
 
                 case ConstraintType.DEAD:
                     for position in constraint.positions:
@@ -430,6 +528,7 @@ class Board:
         Returns:
             bool: True if placed successfully, False otherwise.
         """
+
         row1, col1 = position.row, position.col
         if not (0 <= row1 < self.n_row and 0 <= col1 < self.n_col):
             logging.debug(f"Start position {position} is out of bounds")
@@ -440,7 +539,7 @@ class Board:
             return False
 
         if (
-            domino not in self.possible_dominoes[row1][col1]
+            not any(domino == d[0] for d in self.possible_dominoes[row1][col1])
             # and reverse_domino(domino) not in self.possible_dominoes[row1][col1]
         ):
             logging.debug(f"Domino {domino} is not possible at {position}")
@@ -471,14 +570,36 @@ class Board:
                     and Position(row=row2, col=col2) in constraint.positions
                     and domino.left == domino.right
                 ):
+                    logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
                     return False
 
         if (
-            domino not in self.possible_dominoes[row2][col2]
+            not any(domino == d[0] for d in self.possible_dominoes[row2][col2])
+            # domino not in self.possible_dominoes[row2][col2]
             # and reverse_domino(domino) not in self.possible_dominoes[row2][col2]
         ):
             logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
             return False
+
+        # Check whether both sides of the domino is used. If only one side of the domino is used, it is not valid.
+        possible_dominoes_1 = self.possible_dominoes[row1][col1]
+        dot_set_1 = None
+        for possible_dominoes in possible_dominoes_1:
+            if domino == possible_dominoes[0]:
+                dot_set_1 = set(possible_dominoes[1])
+
+        possible_dominoes_2 = self.possible_dominoes[row2][col2]
+        dot_set_2 = None
+        for possible_dominoes in possible_dominoes_2:
+            if domino == possible_dominoes[0]:
+                dot_set_2 = set(possible_dominoes[1])
+
+        if dot_set_1 and dot_set_2:
+            if domino.left not in dot_set_1 or domino.right not in dot_set_2:
+                logging.debug(f"Domino {domino} is not possible at {(row2, col2)}")
+                logging.debug(f"Dot set 1: {dot_set_1}")
+                logging.debug(f"Dot set 2: {dot_set_2}")
+                return False
 
         # Save original values before modification
         orig_board1 = self.board[row1][col1]
@@ -500,6 +621,7 @@ class Board:
         # remaining_dominoes = available_dominoes
         if remaining_dominoes:
             if not self.check_partial_constraints(remaining_dominoes):
+                # if not self.check_partial_constraints(available_dominoes):
                 logging.debug(
                     f"Domino {domino} violates partial constraints at {position} {direction}"
                 )
@@ -512,6 +634,7 @@ class Board:
                 return False
 
         logging.debug(f"Domino {domino} placed at {position} {direction}")
+        # self.print_board()
         return True
 
     def sort_positions(self):

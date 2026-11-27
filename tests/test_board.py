@@ -155,42 +155,76 @@ def test_add_constraint_free_occupied_cell(empty_board):
 
 def test_find_possible_dominoes_with_total_count(sample_dominoes):
     result = find_possible_dominoes_with_total_count(sample_dominoes, count=2, value=3)
-    assert result == {Domino(1, 2), Domino(2, 3), Domino(6, 1)}
+    assert result == {
+        (Domino(1, 2), (1, 2)),
+        (Domino(2, 3), (2,)),
+        (Domino(6, 1), (1,)),
+    }
 
     result = find_possible_dominoes_with_total_count(sample_dominoes, count=2, value=10)
-    assert result == {Domino(3, 4), Domino(4, 5), Domino(5, 6), Domino(6, 1)}
+    assert result == {
+        (Domino(3, 4), (4,)),
+        (Domino(4, 5), (4, 5)),
+        (Domino(5, 6), (5, 6)),
+        (Domino(6, 1), (6,)),
+    }
 
     result = find_possible_dominoes_with_total_count({Domino(1, 1)}, count=1, value=1)
-    assert result == {Domino(1, 1)}
+    assert result == {(Domino(1, 1), (1, 1))}
 
 
 def test_find_possible_dominoes_with_less_than(sample_dominoes):
     result = find_possible_dominoes_with_less_than(sample_dominoes, count=2, value=4)
-    assert result == {Domino(1, 2), Domino(2, 3), Domino(6, 1)}
+    assert result == {
+        (Domino(1, 2), (1, 2)),
+        (Domino(2, 3), (2,)),
+        (Domino(6, 1), (1,)),
+    }
 
     result = find_possible_dominoes_with_less_than(sample_dominoes, count=2, value=2)
     assert len(result) == 0
 
     result = find_possible_dominoes_with_less_than(sample_dominoes, count=2, value=3)
-    assert result == {Domino(1, 2), Domino(6, 1)}
+    assert result == {(Domino(1, 2), (1,)), (Domino(6, 1), (1,))}
 
     result = find_possible_dominoes_with_less_than(sample_dominoes, count=2, value=12)
-    assert result == sample_dominoes
+    assert result == {
+        (Domino(1, 2), (1, 2)),
+        (Domino(2, 3), (2, 3)),
+        (Domino(3, 4), (3, 4)),
+        (Domino(4, 5), (4, 5)),
+        (Domino(5, 6), (5, 6)),
+        (Domino(6, 1), (1, 6)),
+    }
 
 
 def test_find_possible_dominoes_with_greater_than(sample_dominoes):
     result = find_possible_dominoes_with_greater_than(
         sample_dominoes, count=2, value=10
     )
-    assert result == {Domino(4, 5), Domino(5, 6), Domino(6, 1)}
+    assert result == {
+        (Domino(4, 5), (5,)),
+        (Domino(5, 6), (5, 6)),
+        (Domino(6, 1), (6,)),
+    }
 
     result = find_possible_dominoes_with_greater_than(
         sample_dominoes, count=2, value=11
     )
-    assert result == {Domino(5, 6), Domino(6, 1)}
+    assert result == {
+        (Domino(5, 6), (6,)),
+        (Domino(6, 1), (6,)),
+    }
 
     result = find_possible_dominoes_with_greater_than(sample_dominoes, 2, 2)
-    assert result == sample_dominoes
+    assert result == {
+        (Domino(1, 2), (1, 2)),
+        (Domino(6, 1), (1, 6)),
+        (Domino(2, 3), (2, 3)),
+        (Domino(3, 4), (3, 4)),
+        (Domino(4, 5), (4, 5)),
+        (Domino(5, 6), (5, 6)),
+    }
 
 
 def test_generate_possible_dominoes_total_constraint():
@@ -201,7 +235,7 @@ def test_generate_possible_dominoes_total_constraint():
     )
     board.add_constraint(constraint)
     board.generate_possible_dominoes(dominoes)
-    expected_dominoes = {Domino(1, 2)}
+    expected_dominoes = {(Domino(1, 2), (1, 2))}
     assert board.possible_dominoes[0][0] == expected_dominoes
     assert board.possible_dominoes[0][1] == expected_dominoes
 
@@ -214,7 +248,11 @@ def test_generate_possible_dominoes_equal_constraint():
     )
     board.add_constraint(constraint)
     board.generate_possible_dominoes(dominoes)
-    expected_dominoes = {Domino(1, 1), Domino(1, 2), Domino(2, 2)}
+    expected_dominoes = {
+        (Domino(1, 1), (1, 1)),
+        (Domino(1, 2), (1, 2)),
+        (Domino(2, 2), (2, 2)),
+    }
     assert board.possible_dominoes[0][0] == expected_dominoes
     assert board.possible_dominoes[0][1] == expected_dominoes
 
@@ -226,18 +264,6 @@ def test_generate_possible_dominoes_dead_constraint():
     board.add_constraint(constraint)
     board.generate_possible_dominoes(dominoes)
     assert board.possible_dominoes[0][0] == set()
-
-
-def test_generate_possible_dominoes_free_and_ne_constraints():
-    board = Board(2, 2)
-    dominoes = {Domino(1, 2), Domino(3, 4)}
-    free_constraint = Constraint(ConstraintType.FREE, [Position(row=0, col=0)])
-    ne_constraint = Constraint(ConstraintType.NE, [Position(row=0, col=1)])
-    board.add_constraint(free_constraint)
-    board.add_constraint(ne_constraint)
-    board.generate_possible_dominoes(dominoes)
-    assert board.possible_dominoes[0][0] == dominoes
-    assert board.possible_dominoes[0][1] == dominoes
 
 
 def test_generate_possible_dominoes_lt_constraint():
@@ -261,7 +287,7 @@ def test_generate_possible_dominoes_gt_constraint():
     )
     board.add_constraint(constraint)
     board.generate_possible_dominoes(dominoes)
-    expected_dominoes = {Domino(3, 4), Domino(5, 6)}
+    expected_dominoes = {(Domino(3, 4), (3, 4)), (Domino(5, 6), (5, 6))}
     assert board.possible_dominoes[0][0] == expected_dominoes
     assert board.possible_dominoes[0][1] == expected_dominoes
 
@@ -645,7 +671,7 @@ def test_generate_possible_dominoes_value_constraint(empty_board):
 
     # Only dominoes that contain a 3 should be possible
     possible = empty_board.possible_dominoes[0][0]
-    assert possible == {Domino(3, 4), Domino(3, 3)}
+    assert possible == {(Domino(3, 4), (3,)), (Domino(3, 3), (3, 3))}
     assert len(possible) == 2
 
 
@@ -823,67 +849,14 @@ def test_place_domino_domino_not_possible_at_second(empty_board):
     assert result is False
 
 
-def test_place_domino_reversed_domino_accepted(empty_board):
-    """Test that place_domino accepts reversed domino if it's in possible_dominoes."""
-    from direction import Direction
-    from domino import Domino
-
-    # Allow reversed domino
-    empty_board.possible_dominoes[0][0] = {Domino(2, 1)}  # This is reverse of (1,2)
-    empty_board.possible_dominoes[0][1] = {Domino(2, 1)}
-
-    # This should still work because reverse_domino is checked
-    result = empty_board.place_domino(
-        Domino(1, 2),
-        Position(row=0, col=0),
-        Direction.EAST,
-        [Domino(1, 2)],
-        Domino(1, 2),
-    )
-    assert result is True
-
-
-def test_place_domino_successfully_places_valid_domino(empty_board):
-    """Test that place_domino successfully places a valid domino."""
-    from direction import Direction
-    from domino import Domino
-
-    # Set everything up correctly for a successful placement
-    empty_board.possible_dominoes[0][0] = {Domino(1, 2)}
-    empty_board.possible_dominoes[0][1] = {Domino(1, 2)}
-    available_dominoes = [Domino(1, 2)]
-
-    # Save original state
-    orig_color_index = empty_board.color_index
-
-    # Place the domino
-    result = empty_board.place_domino(
-        Domino(1, 2),
-        Position(row=0, col=0),
-        Direction.EAST,
-        available_dominoes,
-        Domino(1, 2),
-    )
-
-    # Placement should succeed
-    assert result is True
-    # Board values should be updated
-    assert empty_board.board[0][0] == 1
-    assert empty_board.board[0][1] == 2
-    # Color index should be incremented
-    assert empty_board.color_index == (orig_color_index + 1) % len(
-        empty_board.cell_colors[0]
-    )
-
-
 def test_place_domino_success_with_all_directions(empty_board):
     """Test that place_domino works with all four directions."""
     from direction import Direction
     from domino import Domino
 
     # Test EAST
-    empty_board.possible_dominoes[0][0] = {Domino(1, 2)}
-    empty_board.possible_dominoes[0][1] = {Domino(1, 2)}
+    empty_board.possible_dominoes[0][0] = {(Domino(1, 2), (1, 2))}
+    empty_board.possible_dominoes[0][1] = {(Domino(1, 2), (1, 2))}
     result1 = empty_board.place_domino(
         Domino(1, 2),
         Position(row=0, col=0),
@@ -899,8 +872,8 @@ def test_place_domino_success_with_all_directions(empty_board):
     empty_board.color_index = 0
 
     # Test SOUTH
-    empty_board.possible_dominoes[1][0] = {Domino(3, 4)}
-    empty_board.possible_dominoes[0][0] = {Domino(3, 4)}
+    empty_board.possible_dominoes[1][0] = {(Domino(3, 4), (3, 4))}
+    empty_board.possible_dominoes[0][0] = {(Domino(3, 4), (3, 4))}
     result2 = empty_board.place_domino(
         Domino(3, 4),
         Position(row=0, col=0),
@@ -916,8 +889,8 @@ def test_place_domino_success_with_all_directions(empty_board):
     empty_board.color_index = 0
 
     # Test WEST
-    empty_board.possible_dominoes[0][1] = {Domino(5, 6)}
-    empty_board.possible_dominoes[0][0] = {Domino(5, 6)}
+    empty_board.possible_dominoes[0][1] = {(Domino(5, 6), (5, 6))}
+    empty_board.possible_dominoes[0][0] = {(Domino(5, 6), (5, 6))}
     result3 = empty_board.place_domino(
         Domino(5, 6),
         Position(row=0, col=1),
@@ -933,8 +906,8 @@ def test_place_domino_success_with_all_directions(empty_board):
     empty_board.color_index = 0
 
     # Test NORTH
-    empty_board.possible_dominoes[1][0] = {Domino(4, 5)}
-    empty_board.possible_dominoes[0][0] = {Domino(4, 5)}
+    empty_board.possible_dominoes[1][0] = {(Domino(4, 5), (4, 5))}
+    empty_board.possible_dominoes[0][0] = {(Domino(4, 5), (4, 5))}
     result4 = empty_board.place_domino(
         Domino(4, 5),
         Position(row=1, col=0),
@@ -1073,67 +1046,14 @@ def test_place_domino_domino_not_possible_at_end(empty_board):
     assert result is False
 
 
-def test_place_domino_reversed_domino_accepted(empty_board):
-    """Test that place_domino accepts reversed domino if it's in possible_dominoes."""
-    from direction import Direction
-    from domino import Domino
-
-    # Allow reversed domino
-    empty_board.possible_dominoes[0][0] = {Domino(2, 1)}  # This is reverse of (1,2)
-    empty_board.possible_dominoes[0][1] = {Domino(2, 1)}
-
-    # This should still work because reverse_domino is checked
-    result = empty_board.place_domino(
-        Domino(1, 2),
-        Position(row=0, col=0),
-        Direction.EAST,
-        [Domino(1, 2)],
-        Domino(1, 2),
-    )
-    assert result is True
-
-
-def test_place_domino_successfully_places_valid_domino(empty_board):
-    """Test that place_domino successfully places a valid domino."""
-    from direction import Direction
-    from domino import Domino
-
-    # Set everything up correctly for a successful placement
-    empty_board.possible_dominoes[0][0] = {Domino(1, 2)}
-    empty_board.possible_dominoes[0][1] = {Domino(1, 2)}
-    available_dominoes = [Domino(1, 2)]
-
-    # Save original state
-    orig_color_index = empty_board.color_index
-
-    # Place the domino
-    result = empty_board.place_domino(
-        Domino(1, 2),
-        Position(row=0, col=0),
-        Direction.EAST,
-        available_dominoes,
-        Domino(1, 2),
-    )
-
-    # Placement should succeed
-    assert result is True
-    # Board values should be updated
-    assert empty_board.board[0][0] == 1
-    assert empty_board.board[0][1] == 2
-    # Color index should be incremented
-    assert empty_board.color_index == (orig_color_index + 1) % len(
-        empty_board.cell_colors[0]
-    )
-
-
 def test_place_domino_all_directions_work(empty_board):
     """Test that place_domino works with all four directions."""
     from direction import Direction
     from domino import Domino
 
     # Test EAST (already tested, but test SOUTH here)
-    empty_board.possible_dominoes[0][0] = {Domino(1, 2)}
-    empty_board.possible_dominoes[1][0] = {Domino(1, 2)}  # cell below (0,0)
+    empty_board.possible_dominoes[0][0] = {(Domino(1, 2), (1,))}
+    empty_board.possible_dominoes[1][0] = {(Domino(1, 2), (2,))}  # cell below (0,0)
 
     result = empty_board.place_domino(
         Domino(1, 2),

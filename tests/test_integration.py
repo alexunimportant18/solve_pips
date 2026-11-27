@@ -37,9 +37,9 @@ def normalize_output(output: str) -> str:
     output = ansi_escape.sub("", output)
 
     # Remove cache statistics lines which may vary between runs
-    # output = re.sub(r"Cache statistics:.*?\n", "", output, flags=re.DOTALL)
-    # output = re.sub(r"  Total function calls:.*?\n", "", output)
-    # output = re.sub(r"  Function calls cached:.*?\n", "", output)
+    output = re.sub(r"Cache statistics:.*?\n", "", output, flags=re.DOTALL)
+    output = re.sub(r"  Total function calls:.*?\n", "", output)
+    output = re.sub(r"  Function calls cached:.*?\n", "", output)
 
     # Normalize newlines and strip extra whitespace
     output = os.linesep.join(

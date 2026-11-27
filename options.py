@@ -8,6 +8,7 @@ class Options:
         parser (argparse.ArgumentParser): The argument parser instance.
         initialized (bool): Flag indicating if the parser has been configured.
     """
+
     def __init__(self) -> None:
         """Initializes the Options class with a default ArgumentParser."""
         self.parser = argparse.ArgumentParser(
@@ -39,6 +40,13 @@ class Options:
             "--verbose",
             dest="verbose",
             help="set logging level to INFO",
+            action="store_true",
+        )
+        self.parser.add_argument(
+            "-d",
+            "--debug",
+            dest="debug",
+            help="set logging level to DEBUG",
             action="store_true",
         )
         self.initialized = True
