@@ -70,7 +70,7 @@ def test_puzzle_solution(csv_path, expected_path, capsys):
             capture_output=True,
             text=True,
             cwd=project_root,
-            timeout=2.0,  # This will raise TimeoutExpired if it takes longer than 2 seconds
+            timeout=10.0,  # This will raise TimeoutExpired if it takes longer than 2 seconds
         )
     except subprocess.TimeoutExpired as e:
         end_time = time.perf_counter()

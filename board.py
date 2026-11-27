@@ -21,6 +21,8 @@ color_sequence = [
     "light_blue",
 ]
 
+trace = False
+
 
 def get_next_color() -> Generator[str, None, None]:
     """Infinite generator that cycles through the defined color sequence.
@@ -619,22 +621,26 @@ class Board:
             item for item in available_dominoes if item != domino_to_remove
         ]
         # remaining_dominoes = available_dominoes
-        if remaining_dominoes:
-            if not self.check_partial_constraints(remaining_dominoes):
-                # if not self.check_partial_constraints(available_dominoes):
-                logging.debug(
-                    f"Domino {domino} violates partial constraints at {position} {direction}"
-                )
-                # Restore original values instead of using deepcopy
-                self.board[row1][col1] = orig_board1
-                self.board[row2][col2] = orig_board2
-                self.cell_colors[row1][col1] = orig_color1
-                self.cell_colors[row2][col2] = orig_color2
-                self.color_index = orig_color_index
-                return False
+        # if remaining_dominoes:
+        if not self.check_partial_constraints(remaining_dominoes):
+            # if not self.check_partial_constraints(available_dominoes):
+            logging.debug(
+                f"Domino {domino} violates partial constraints at {position} {direction}"
+            )
+            # Restore original values instead of using deepcopy
+            self.board[row1][col1] = orig_board1
+            self.board[row2][col2] = orig_board2
+            self.cell_colors[row1][col1] = orig_color1
+            self.cell_colors[row2][col2] = orig_color2
+            self.color_index = orig_color_index
+            return False
 
         logging.debug(f"Domino {domino} placed at {position} {direction}")
-        # self.print_board()
+        if trace:
+            self.print_board()
+
+        return True
+
         return True
 
     def sort_positions(self):
